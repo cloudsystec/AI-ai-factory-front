@@ -53,5 +53,6 @@ export async function apiFetch(path, init = {}) {
 export function jobEventsUrl(jobId) {
   const token = getToken();
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
-  return `${API_BASE}/api/jobs/${jobId}/events${q}`;
+  const base = API_BASE || "";
+  return `${base}/api/jobs/${jobId}/events${q}`;
 }

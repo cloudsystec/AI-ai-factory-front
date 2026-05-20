@@ -134,15 +134,22 @@ export default function AdminPage({ onClose }) {
       {message && <p className="msg msg--muted">{message}</p>}
 
       <form className="admin-editor" onSubmit={handleSave}>
+        <label className="form-field__label" htmlFor="admin-agent-content">
+          Conteúdo do prompt ({roleKey})
+        </label>
         <textarea
+          id="admin-agent-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={24}
           spellCheck={false}
+          placeholder="Markdown do agente…"
         />
-        <button type="submit" className="toolbar-btn toolbar-btn--primary">
-          Guardar
-        </button>
+        <div className="new-project-form__actions">
+          <button type="submit" className="toolbar-btn toolbar-btn--primary">
+            Guardar
+          </button>
+        </div>
       </form>
     </div>
   );

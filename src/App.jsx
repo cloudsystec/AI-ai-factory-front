@@ -207,8 +207,32 @@ function scopeStepIcon(state) {
   return "○";
 }
 
+function isScopeStateRenderable(scope) {
+  return (
+    scope &&
+    scope.current &&
+    typeof scope.current.label === "string" &&
+    Array.isArray(scope.scopeSteps) &&
+    scope.scopeSteps.length > 0
+  );
+}
+
 function ScopeStrip({ scope }) {
-  if (!scope) return null;
+  if (!isScopeStateRenderable(scope)) {
+    return (
+      <section className="scope-strip scope-strip--loading msg msg--muted">
+        Estado do escopo ainda não disponível — execute um job no CLI (ex.: provision ou
+        scope) para sincronizar.
+      </section>
+    );
+  }
+
+  const waveStats = scope.waveTaskStats ?? {
+    total: 0,
+    pendingTl: 0,
+    todoApproved: 0,
+  };
+  const paths = scope.paths ?? { macro: "", micro: "", backlog: "" };
 
   return (
     <section className="scope-strip" aria-labelledby="scope-current-heading">
@@ -270,8 +294,10 @@ function ScopeStrip({ scope }) {
         <div>
           <dt>Fases</dt>
           <dd>
-            {scope.microCount} no total · {scope.microsApproved} validadas
-            {scope.microsPendingPo > 0 ? ` · ${scope.microsPendingPo} em revisão` : ""}
+            {scope.microCount ?? 0} no total · {scope.microsApproved ?? 0} validadas
+            {(scope.microsPendingPo ?? 0) > 0
+              ? ` · ${scope.microsPendingPo} em revisão`
+              : ""}
           </dd>
         </div>
         <div>
@@ -289,26 +315,34 @@ function ScopeStrip({ scope }) {
         <div>
           <dt>Tarefas na fase</dt>
           <dd>
-            {scope.waveTaskStats.total} planejadas · {scope.waveTaskStats.pendingTl} em revisão ·{" "}
-            {scope.waveTaskStats.todoApproved} prontas para executar
+            {waveStats.total} planejadas · {waveStats.pendingTl} em revisão ·{" "}
+            {waveStats.todoApproved} prontas para executar
           </dd>
         </div>
       </dl>
 
-      <details className="scope-strip__paths">
-        <summary>Referência técnica (ficheiros)</summary>
-        <ul>
-          <li>
-            <code>{scope.paths.macro}</code>
-          </li>
-          <li>
-            <code>{scope.paths.micro}</code>
-          </li>
-          <li>
-            <code>{scope.paths.backlog}</code>
-          </li>
-        </ul>
-      </details>
+      {(paths.macro || paths.micro || paths.backlog) && (
+        <details className="scope-strip__paths">
+          <summary>Referência técnica (ficheiros)</summary>
+          <ul>
+            {paths.macro && (
+              <li>
+                <code>{paths.macro}</code>
+              </li>
+            )}
+            {paths.micro && (
+              <li>
+                <code>{paths.micro}</code>
+              </li>
+            )}
+            {paths.backlog && (
+              <li>
+                <code>{paths.backlog}</code>
+              </li>
+            )}
+          </ul>
+        </details>
+      )}
     </section>
   );
 }
@@ -330,6 +364,9 @@ export default function App({ onLogout }) {
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState(null);
+  const [resetNotice, setResetNotice] = useState(null);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -359,53 +396,92 @@ export default function App({ onLogout }) {
     }
   }, [selectedProject]);
 
+  const loadDashboardData = useCallback(async () => {
+    if (!selectedProject) return;
+    const q = encodeURIComponent(selectedProject);
+    try {
+      const [tasksRes, scopeRes, settingsRes] = await Promise.all([
+        apiFetch(`/api/tasks?project=${q}`),
+        apiFetch(`/api/scope-state?project=${q}`),
+        apiFetch(`/api/develop-settings?project=${q}`),
+      ]);
+
+      if (tasksRes.ok) {
+        const data = await tasksRes.json();
+        setTasks(Array.isArray(data) ? data : []);
+      } else {
+        setTasks([]);
+      }
+
+      if (scopeRes.ok) {
+        const scopeJson = await scopeRes.json();
+        setScopeState(scopeJson);
+      } else {
+        setScopeState(null);
+      }
+
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        setAutorun(settings.autorun === true);
+        setDevelopSettingsError(null);
+      }
+    } catch {
+      setTasks([]);
+      setScopeState(null);
+    }
+  }, [selectedProject]);
+
   useEffect(() => {
     if (!selectedProject) {
       setTasks([]);
       setScopeState(null);
       setAutorun(false);
       setDevelopSettingsError(null);
+      setResetError(null);
+      setResetNotice(null);
       return;
-    }
-
-    const q = encodeURIComponent(selectedProject);
-
-    async function loadDashboardData() {
-      try {
-        const [tasksRes, scopeRes, settingsRes] = await Promise.all([
-          apiFetch(`/api/tasks?project=${q}`),
-          apiFetch(`/api/scope-state?project=${q}`),
-          apiFetch(`/api/develop-settings?project=${q}`),
-        ]);
-
-        if (tasksRes.ok) {
-          const data = await tasksRes.json();
-          setTasks(Array.isArray(data) ? data : []);
-        } else {
-          setTasks([]);
-        }
-
-        if (scopeRes.ok) {
-          setScopeState(await scopeRes.json());
-        } else {
-          setScopeState(null);
-        }
-
-        if (settingsRes.ok) {
-          const settings = await settingsRes.json();
-          setAutorun(settings.autorun === true);
-          setDevelopSettingsError(null);
-        }
-      } catch {
-        setTasks([]);
-        setScopeState(null);
-      }
     }
 
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 1500);
     return () => clearInterval(interval);
-  }, [selectedProject]);
+  }, [selectedProject, loadDashboardData]);
+
+  const handleResetProject = useCallback(async () => {
+    if (!selectedProject || resetting) return;
+    const ok = window.confirm(
+      `Repor o projeto "${selectedProject}" ao zero?\n\n` +
+        "• Cria backup ZIP em data/tenants/.../BACKUP/<data>/ (workspace, macro, código, relatórios)\n" +
+        "• Apaga o workspace atual no CLI e restaura só o escopo macro da BD\n" +
+        "• Limpa micros, tarefas e snapshot do painel\n\n" +
+        "Esta ação não pode ser desfeita (só recuperável pelo ZIP de backup)."
+    );
+    if (!ok) return;
+
+    setResetting(true);
+    setResetError(null);
+    setResetNotice(null);
+    try {
+      const res = await apiFetch(
+        `/api/projects/${encodeURIComponent(selectedProject)}/reset`,
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setDetailTaskId(null);
+      const rel = data.backup?.backupRelative;
+      setResetNotice(
+        rel
+          ? `Backup guardado: ${rel}. Projeto reposto a zero.`
+          : data.message || "Projeto reposto a zero."
+      );
+      await loadDashboardData();
+    } catch (e) {
+      setResetError(e.message || String(e));
+    } finally {
+      setResetting(false);
+    }
+  }, [selectedProject, resetting, loadDashboardData]);
 
   useEffect(() => {
     if (!selectedProject && projects.length > 0) {
@@ -503,7 +579,30 @@ export default function App({ onLogout }) {
         >
           Novo projeto
         </button>
+        {selectedProject && (
+          <button
+            type="button"
+            className="toolbar-btn toolbar-btn--danger"
+            disabled={resetting || runningCount > 0}
+            title={
+              runningCount > 0
+                ? "Aguarde o fim das tarefas em execução ou interrompa o job"
+                : "Backup ZIP + apagar workspace; restaurar escopo macro da BD"
+            }
+            onClick={() => handleResetProject()}
+          >
+            {resetting ? "A repor…" : "Reset projeto"}
+          </button>
+        )}
       </div>
+
+      {resetNotice && (
+        <p className="msg msg--ok">{resetNotice}</p>
+      )}
+
+      {resetError && (
+        <p className="msg msg--error">{resetError}</p>
+      )}
 
       {developSettingsError && (
         <p className="msg msg--error">{developSettingsError}</p>
@@ -518,7 +617,7 @@ export default function App({ onLogout }) {
       )}
 
       {selectedProject &&
-        (scopeState ? (
+        (scopeState !== null ? (
           <ScopeStrip scope={scopeState} />
         ) : (
           <p className="scope-strip scope-strip--loading msg msg--muted">

@@ -1,5 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch, jobEventsUrl } from "./api.js";
+import { ACTIVE_JOB_STATUSES, isJobActive } from "./job-status.js";
+
+const LOG_POLL_MS = 2500;
+const STATUS_POLL_MS = 2000;
+const MAX_SSE_RECONNECT = 6;
+
+/**
+ * @param {object|null} apiJob
+ * @returns {object|null}
+ */
+function jobFromApi(apiJob) {
+  if (!apiJob) return null;
+  return {
+    id: apiJob.id,
+    kind: apiJob.kind,
+    project: apiJob.project,
+    macroId: apiJob.macroId,
+    taskId: apiJob.taskId,
+    status: apiJob.status,
+    startedAt: apiJob.startedAt,
+    finishedAt: apiJob.finishedAt ?? null,
+    exitCode: apiJob.exitCode ?? null,
+  };
+}
 
 /**
  * @param {string} selectedProject
@@ -9,46 +33,174 @@ export function useJobRunner(selectedProject) {
   const [logText, setLogText] = useState("");
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(false);
+  const [logStreamStatus, setLogStreamStatus] = useState("offline");
   const eventSourceRef = useRef(null);
   const logScrollRef = useRef(null);
+  const jobStatusRef = useRef(null);
+  const jobIdRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
+  const connectEventsImplRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
+  const syncJobStatusImplRef = useRef(null);
+
+  const setJobSync = useCallback((next) => {
+    if (next) {
+      jobStatusRef.current = next.status ?? null;
+      jobIdRef.current = next.id ?? null;
+    } else {
+      jobStatusRef.current = null;
+      jobIdRef.current = null;
+    }
+    setJob(next);
+  }, []);
 
   const disconnectEvents = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    intentionalCloseRef.current = true;
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    setLogStreamStatus("offline");
   }, []);
+
+  const fetchJobLog = useCallback(async (jobId) => {
+    if (!jobId) return;
+    const logRes = await apiFetch(`/api/jobs/${jobId}/log`);
+    if (logRes.ok) {
+      const text = await logRes.text();
+      setLogText(text);
+    }
+  }, []);
+
+  const fetchJobDetail = useCallback(async (jobId) => {
+    const res = await apiFetch(`/api/jobs/${jobId}`);
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data.job ?? null;
+  }, []);
+
+  const syncJobStatusFromApi = useCallback(
+    async (apiJob) => {
+      if (!apiJob?.id) return;
+      if (jobIdRef.current && jobIdRef.current !== apiJob.id) return;
+
+      const prevStatus = jobStatusRef.current;
+      const nextStatus = apiJob.status;
+      const wasActive = isJobActive(prevStatus);
+      const isActive = isJobActive(nextStatus);
+
+      setJob((prev) => {
+        if (!prev || prev.id !== apiJob.id) {
+          return jobFromApi(apiJob) ?? prev;
+        }
+        return {
+          ...prev,
+          status: apiJob.status,
+          ...(apiJob.finishedAt !== undefined
+            ? { finishedAt: apiJob.finishedAt }
+            : {}),
+          ...(apiJob.exitCode !== undefined
+            ? { exitCode: apiJob.exitCode }
+            : {}),
+          ...(apiJob.kind !== undefined ? { kind: apiJob.kind } : {}),
+        };
+      });
+      jobStatusRef.current = nextStatus;
+      jobIdRef.current = apiJob.id;
+
+      if (wasActive && !isActive) {
+        intentionalCloseRef.current = true;
+        disconnectEvents();
+        await fetchJobLog(apiJob.id);
+      } else if (!wasActive && isActive && !eventSourceRef.current) {
+        reconnectAttemptRef.current = 0;
+        connectEventsImplRef.current?.(apiJob.id);
+      }
+    },
+    [disconnectEvents, fetchJobLog]
+  );
+
+  syncJobStatusImplRef.current = syncJobStatusFromApi;
 
   const connectEvents = useCallback(
     (jobId) => {
-      disconnectEvents();
+      if (!jobId) return;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      intentionalCloseRef.current = false;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
       const es = new EventSource(jobEventsUrl(jobId));
       eventSourceRef.current = es;
+
+      es.onopen = () => {
+        setLogStreamStatus("connected");
+        reconnectAttemptRef.current = 0;
+      };
 
       es.onmessage = (ev) => {
         try {
           const payload = JSON.parse(ev.data);
-          if (payload.type === "snapshot" && payload.text) {
-            setLogText(payload.text);
+          if (payload.type === "reset") {
+            setLogText("");
+          } else if (payload.type === "snapshot") {
+            setLogText(payload.text ?? "");
           } else if (payload.type === "line" && payload.text) {
             setLogText((prev) => {
               const next = prev ? `${prev}\n${payload.text}` : payload.text;
               return next;
             });
-          } else if (payload.type === "status") {
-            setJob((prev) => (prev ? { ...prev, status: payload.status } : prev));
+          } else if (payload.type === "status" && payload.status) {
+            jobStatusRef.current = payload.status;
+            setJob((prev) =>
+              prev ? { ...prev, status: payload.status } : prev
+            );
+            if (!isJobActive(payload.status)) {
+              intentionalCloseRef.current = true;
+              es.close();
+              eventSourceRef.current = null;
+              setLogStreamStatus("offline");
+              fetchJobDetail(jobId)
+                .then((fresh) => syncJobStatusImplRef.current?.(fresh))
+                .catch(() => {});
+              fetchJobLog(jobId).catch(() => {});
+            }
           } else if (payload.type === "exit") {
-            setJob((prev) => {
-              if (!prev) return prev;
-              if (prev.status === "cancelled") return prev;
-              return {
-                ...prev,
-                status: payload.code === 0 ? "succeeded" : "failed",
-                exitCode: payload.code,
-              };
-            });
+            intentionalCloseRef.current = true;
             es.close();
             eventSourceRef.current = null;
+            setLogStreamStatus("offline");
+            fetchJobDetail(jobId)
+              .then((fresh) => {
+                if (fresh) return syncJobStatusImplRef.current?.(fresh);
+                if (payload.code === 0) {
+                  jobStatusRef.current = "succeeded";
+                  setJob((prev) =>
+                    prev && prev.status !== "cancelled"
+                      ? { ...prev, status: "succeeded", exitCode: payload.code }
+                      : prev
+                  );
+                } else {
+                  jobStatusRef.current = "failed";
+                  setJob((prev) =>
+                    prev && prev.status !== "cancelled"
+                      ? { ...prev, status: "failed", exitCode: payload.code }
+                      : prev
+                  );
+                }
+              })
+              .catch(() => {});
+            fetchJobLog(jobId).catch(() => {});
           }
         } catch {
           /* ignore malformed */
@@ -56,46 +208,131 @@ export function useJobRunner(selectedProject) {
       };
 
       es.onerror = () => {
+        if (intentionalCloseRef.current) {
+          intentionalCloseRef.current = false;
+          eventSourceRef.current = null;
+          setLogStreamStatus("offline");
+          return;
+        }
+
         es.close();
         eventSourceRef.current = null;
+
+        const st = jobStatusRef.current;
+        const currentId = jobIdRef.current;
+        if (
+          !st ||
+          !ACTIVE_JOB_STATUSES.has(st) ||
+          currentId !== jobId ||
+          reconnectAttemptRef.current >= MAX_SSE_RECONNECT
+        ) {
+          setLogStreamStatus("offline");
+          if (currentId === jobId) {
+            fetchJobLog(jobId).catch(() => {});
+            fetchJobDetail(jobId)
+              .then((fresh) => syncJobStatusImplRef.current?.(fresh))
+              .catch(() => {});
+          }
+          return;
+        }
+
+        setLogStreamStatus("reconnecting");
+        const delay = Math.min(5000, 800 * (reconnectAttemptRef.current + 1));
+        reconnectAttemptRef.current += 1;
+        reconnectTimerRef.current = window.setTimeout(() => {
+          reconnectTimerRef.current = null;
+          if (
+            jobIdRef.current === jobId &&
+            jobStatusRef.current &&
+            ACTIVE_JOB_STATUSES.has(jobStatusRef.current)
+          ) {
+            connectEventsImplRef.current?.(jobId);
+          }
+        }, delay);
       };
     },
-    [disconnectEvents]
+    [fetchJobLog, fetchJobDetail]
   );
 
-  const refreshActive = useCallback(async () => {
+  connectEventsImplRef.current = connectEvents;
+
+  const applyJobFromApi = useCallback(
+    async (apiJob) => {
+      if (!apiJob) {
+        setJobSync(null);
+        setLogText("");
+        return;
+      }
+      setJobSync(jobFromApi(apiJob));
+      await fetchJobLog(apiJob.id);
+      if (isJobActive(apiJob.status)) {
+        connectEvents(apiJob.id);
+      } else {
+        disconnectEvents();
+      }
+    },
+    [setJobSync, fetchJobLog, connectEvents, disconnectEvents]
+  );
+
+  const refreshRunner = useCallback(async () => {
+    if (!selectedProject) return;
     try {
-      const res = await apiFetch("/api/jobs/active");
+      const res = await apiFetch(
+        `/api/jobs/latest?project=${encodeURIComponent(selectedProject)}`
+      );
       if (!res.ok) return;
       const data = await res.json();
-      if (data.job) {
-        setJob(data.job);
-        const logRes = await apiFetch(`/api/jobs/${data.job.id}/log`);
-        if (logRes.ok) {
-          setLogText(await logRes.text());
-        }
-        if (
-          data.job.status === "running" ||
-          data.job.status === "waiting_input"
-        ) {
-          connectEvents(data.job.id);
-        }
-      }
+      await applyJobFromApi(data.job);
     } catch {
       /* ignore */
     }
-  }, [connectEvents]);
+  }, [selectedProject, applyJobFromApi]);
 
   useEffect(() => {
     disconnectEvents();
-    setJob(null);
+    setJobSync(null);
     setLogText("");
     setError(null);
     if (selectedProject) {
-      refreshActive();
+      refreshRunner();
     }
     return () => disconnectEvents();
-  }, [selectedProject, disconnectEvents, refreshActive]);
+  }, [selectedProject, disconnectEvents, refreshRunner, setJobSync]);
+
+  useEffect(() => {
+    const id = job?.id;
+    if (!id) return;
+
+    let cancelled = false;
+    const pollStatus = async () => {
+      try {
+        const fresh = await fetchJobDetail(id);
+        if (cancelled || !fresh) return;
+        await syncJobStatusFromApi(fresh);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    pollStatus();
+    const timer = window.setInterval(pollStatus, STATUS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [job?.id, fetchJobDetail, syncJobStatusFromApi]);
+
+  useEffect(() => {
+    const id = job?.id;
+    const status = job?.status;
+    if (!id || !status || !isJobActive(status)) return;
+
+    const timer = window.setInterval(() => {
+      fetchJobLog(id).catch(() => {});
+    }, LOG_POLL_MS);
+
+    return () => clearInterval(timer);
+  }, [job?.id, job?.status, fetchJobLog]);
 
   useEffect(() => {
     const el = logScrollRef.current;
@@ -108,6 +345,7 @@ export function useJobRunner(selectedProject) {
       if (!selectedProject) return;
       setStarting(true);
       setError(null);
+      disconnectEvents();
       try {
         const res = await apiFetch("/api/jobs", {
           method: "POST",
@@ -117,7 +355,8 @@ export function useJobRunner(selectedProject) {
         if (!res.ok) {
           throw new Error(data.error || res.statusText);
         }
-        setJob({
+        reconnectAttemptRef.current = 0;
+        setJobSync({
           id: data.jobId,
           kind: data.kind,
           project: selectedProject,
@@ -126,13 +365,23 @@ export function useJobRunner(selectedProject) {
         });
         setLogText("");
         connectEvents(data.jobId);
+        fetchJobDetail(data.jobId)
+          .then((fresh) => syncJobStatusFromApi(fresh))
+          .catch(() => {});
       } catch (e) {
         setError(e.message || String(e));
       } finally {
         setStarting(false);
       }
     },
-    [selectedProject, connectEvents]
+    [
+      selectedProject,
+      connectEvents,
+      disconnectEvents,
+      setJobSync,
+      fetchJobDetail,
+      syncJobStatusFromApi,
+    ]
   );
 
   const cancelJob = useCallback(async () => {
@@ -143,17 +392,34 @@ export function useJobRunner(selectedProject) {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.job) {
+        await syncJobStatusFromApi(data.job);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || res.statusText);
-      if (data.status) setJob((prev) => (prev ? { ...prev, status: data.status } : prev));
+      jobStatusRef.current = "cancelled";
+      setJob((prev) =>
+        prev ? { ...prev, status: data.status || "cancelled" } : prev
+      );
+      disconnectEvents();
+      await fetchJobLog(job.id);
     } catch (e) {
+      const fresh = await fetchJobDetail(job.id).catch(() => null);
+      if (fresh) {
+        await syncJobStatusFromApi(fresh);
+        if (!isJobActive(fresh.status)) return;
+      }
       setError(e.message || String(e));
     }
-  }, [job?.id]);
+  }, [
+    job?.id,
+    disconnectEvents,
+    fetchJobLog,
+    syncJobStatusFromApi,
+    fetchJobDetail,
+  ]);
 
-  const isBusy =
-    job?.status === "running" ||
-    job?.status === "waiting_input" ||
-    job?.status === "queued";
+  const isBusy = isJobActive(job?.status);
 
   return {
     job,
@@ -161,9 +427,10 @@ export function useJobRunner(selectedProject) {
     error,
     starting,
     isBusy,
+    logStreamStatus,
     logScrollRef,
     startJob,
     sendInput: async () => {},
     cancelJob,
   };
-}
+};

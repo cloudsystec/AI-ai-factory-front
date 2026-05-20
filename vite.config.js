@@ -6,7 +6,17 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: "http://localhost:4000", changeOrigin: true },
+      "/api": {
+        target: "http://localhost:4000",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes, req) => {
+            if (req.url?.includes("/events")) {
+              proxyRes.headers["cache-control"] = "no-cache";
+            }
+          });
+        },
+      },
       "/worker": { target: "http://localhost:4000", changeOrigin: true },
       "/dev": { target: "http://localhost:4000", changeOrigin: true },
       "/health": { target: "http://localhost:4000", changeOrigin: true },

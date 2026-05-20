@@ -3,6 +3,8 @@ import { useJobRunner } from "./useJobRunner.js";
 
 function statusMeta(status) {
   switch (status) {
+    case "queued":
+      return { label: "Na fila", className: "runner-pill--running" };
     case "running":
       return { label: "Em curso", className: "runner-pill--running" };
     case "waiting_input":
@@ -21,6 +23,17 @@ function statusMeta(status) {
 function truncate(str, max) {
   const s = String(str || "");
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
+function streamStatusLabel(status) {
+  switch (status) {
+    case "connected":
+      return "Log em tempo real";
+    case "reconnecting":
+      return "A reconectar… (polling ativo)";
+    default:
+      return "Log offline";
+  }
 }
 
 /**
@@ -48,6 +61,7 @@ export default function RunnerSidebar({
     starting,
     isBusy,
     logScrollRef,
+    logStreamStatus,
     startJob,
     sendInput,
     cancelJob,
@@ -79,6 +93,7 @@ export default function RunnerSidebar({
 
   const disabled = !selectedProject || isBusy || starting;
   const status = job ? statusMeta(job.status) : statusMeta(null);
+  const hasLog = Boolean(logText?.trim());
 
   const scopeTitle = macroId
     ? `Projeto ${selectedProject} · macro ${macroId}`
@@ -210,9 +225,30 @@ export default function RunnerSidebar({
       )}
 
       <section className="runner-sidebar__log-wrap">
-        <h3 className="runner-sidebar__log-title">Registo</h3>
+        <div className="runner-sidebar__log-head">
+          <h3 className="runner-sidebar__log-title">Registo</h3>
+          {job?.id && (
+            <span className="runner-sidebar__log-meta" title={job.id}>
+              {truncate(job.id, 14)}
+            </span>
+          )}
+          {job && !isBusy && (
+            <span className="runner-sidebar__stream runner-sidebar__stream--offline">
+              Último job
+            </span>
+          )}
+          {isBusy && (
+            <span
+              className={`runner-sidebar__stream runner-sidebar__stream--${logStreamStatus}`}
+              title={streamStatusLabel(logStreamStatus)}
+            >
+              {streamStatusLabel(logStreamStatus)}
+            </span>
+          )}
+        </div>
         <pre ref={logScrollRef} className="runner-sidebar__log">
-          {logText || (isBusy ? "…" : "Nenhuma execução em curso.")}
+          {logText ||
+            (isBusy ? "…" : hasLog ? "" : "Nenhuma execução para este projeto.")}
         </pre>
       </section>
     </aside>
