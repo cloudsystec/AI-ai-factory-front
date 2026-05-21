@@ -49,7 +49,9 @@ export default function WorkerRobots({
         {slots.map(({ index, job, busy }) => {
           const selected = job?.id && job.id === selectedJobId;
           const title = job
-            ? `${kindLabel(job.kind)} · ${job.project}${job.taskId ? ` · ${job.taskId}` : ""}`
+            ? `${kindLabel(job.kind)} · ${job.project}${
+                job.executorEmail ? ` · ${job.executorEmail}` : ""
+              }${job.taskId ? ` · ${job.taskId}` : ""}`
             : busy
               ? "Slot em uso"
               : "Livre";

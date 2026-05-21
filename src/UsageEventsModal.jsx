@@ -62,6 +62,7 @@ export default function UsageEventsModal({ events, onClose }) {
               <thead>
                 <tr>
                   <th scope="col">Data</th>
+                  <th scope="col">Executado por</th>
                   <th scope="col">Estado</th>
                   <th scope="col" className="usage-events-table__num">
                     Base (USD)
@@ -80,6 +81,12 @@ export default function UsageEventsModal({ events, onClose }) {
                       <time dateTime={ev.created_at}>
                         {formatDateTime(ev.created_at)}
                       </time>
+                    </td>
+                    <td
+                      className="usage-events-table__executor"
+                      title={ev.executor_email || ""}
+                    >
+                      {ev.executor_email || "—"}
                     </td>
                     <td>
                       <span

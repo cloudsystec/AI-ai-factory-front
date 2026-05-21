@@ -50,6 +50,8 @@ const KIND_SHORT = {
  *   selectedProject: string,
  *   macroId: string|null|undefined,
  *   autorun: boolean,
+ *   canExecute?: boolean,
+ *   canWrite?: boolean,
  *   onAutorunChange: (checked: boolean) => void,
  *   tasks: object[],
  *   detailTaskId: string|null,
@@ -61,6 +63,8 @@ export default function RunnerSidebar({
   selectedProject,
   macroId,
   autorun,
+  canExecute = false,
+  canWrite = false,
   onAutorunChange,
   tasks,
   detailTaskId,
@@ -129,7 +133,7 @@ export default function RunnerSidebar({
       <header className="runner-sidebar__head runner-sidebar__head--compact">
         <div className="runner-sidebar__head-row">
           <h2 className="runner-sidebar__title">Execução</h2>
-          {selectedProject && (
+          {selectedProject && canWrite && (
             <label
               className="runner-autorun"
               title="Avançar automaticamente para a próxima tarefa"
@@ -163,14 +167,16 @@ export default function RunnerSidebar({
         <p className="runner-sidebar__exec-line" title={job?.id}>
           {execLine}
         </p>
-        <button
-          type="button"
-          className="runner-sidebar__detail-btn"
-          disabled={!selectedProject}
-          onClick={() => setShowControls(true)}
-        >
-          Controlo
-        </button>
+        {canExecute && (
+          <button
+            type="button"
+            className="runner-sidebar__detail-btn"
+            disabled={!selectedProject}
+            onClick={() => setShowControls(true)}
+          >
+            Controlo
+          </button>
+        )}
       </div>
 
       {error && <p className="runner-sidebar__error">{error}</p>}
@@ -202,7 +208,7 @@ export default function RunnerSidebar({
         </pre>
       </section>
 
-      {showControls && (
+      {canExecute && showControls && (
         <RunnerControlsModal
           onClose={() => setShowControls(false)}
           scopeTitle={scopeTitle}

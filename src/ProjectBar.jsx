@@ -5,7 +5,8 @@ import React from "react";
  *   projects: string[],
  *   selectedProject: string,
  *   onProjectChange: (slug: string) => void,
- *   onNewProject: () => void,
+ *   canWrite?: boolean,
+ *   onNewProject?: () => void,
  *   onResetProject?: () => void,
  *   resetting?: boolean,
  *   runningCount?: number,
@@ -15,6 +16,7 @@ export default function ProjectBar({
   projects,
   selectedProject,
   onProjectChange,
+  canWrite = false,
   onNewProject,
   onResetProject,
   resetting = false,
@@ -40,14 +42,16 @@ export default function ProjectBar({
         ))}
       </select>
       <div className="project-bar__actions">
-        <button
-          type="button"
-          className="toolbar-btn toolbar-btn--primary"
-          onClick={onNewProject}
-        >
-          Novo projeto
-        </button>
-        {selectedProject && onResetProject && (
+        {canWrite && onNewProject && (
+          <button
+            type="button"
+            className="toolbar-btn toolbar-btn--primary"
+            onClick={onNewProject}
+          >
+            Novo projeto
+          </button>
+        )}
+        {canWrite && selectedProject && onResetProject && (
           <button
             type="button"
             className="toolbar-btn toolbar-btn--danger"

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { apiFetch, setToken } from "./api.js";
+import { apiFetch } from "./api.js";
 
 /**
- * @param {{ onLoggedIn: () => void }} props
+ * @param {{ onLoggedIn: (data: object) => void }} props
  */
 export default function LoginPage({ onLoggedIn }) {
   const [email, setEmail] = useState("");
@@ -23,8 +23,7 @@ export default function LoginPage({ onLoggedIn }) {
       if (!res.ok) {
         throw new Error(data.error || data.code || res.statusText);
       }
-      setToken(data.token);
-      onLoggedIn();
+      onLoggedIn(data);
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -36,7 +35,7 @@ export default function LoginPage({ onLoggedIn }) {
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>AI Factory</h1>
-        <p className="login-subtitle">Entre com o seu email e a senha mestra.</p>
+        <p className="login-subtitle">Entre com o email e a senha da sua conta.</p>
         <label>
           Email
           <input

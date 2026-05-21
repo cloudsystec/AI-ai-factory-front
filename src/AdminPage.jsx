@@ -127,7 +127,7 @@ export default function AdminPage({ onClose }) {
   return (
     <div className="admin-page">
       <header className="admin-page__header">
-        <h1>Admin — Agentes</h1>
+        <h1>Admin plataforma — Agentes</h1>
         <button type="button" className="toolbar-btn" onClick={onClose}>
           Voltar ao dashboard
         </button>

@@ -12,7 +12,10 @@ import BillingPanel from "./BillingPanel.jsx";
 import ProjectBar from "./ProjectBar.jsx";
 import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import AdminPage from "./AdminPage.jsx";
+import UsersPage from "./UsersPage.jsx";
+import AgentsPage from "./AgentsPage.jsx";
 import { apiFetch } from "./api.js";
+import { useCapabilities, useSession } from "./SessionContext.jsx";
 
 const columns = [
   { key: "todo", title: "A fazer", icon: "📥" },
@@ -309,6 +312,8 @@ function ScopeStrip({ scope, onOpenDetail }) {
 }
 
 export default function App({ onLogout }) {
+  const caps = useCapabilities();
+  const { isPlatformAdmin } = useSession();
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(() => {
     try {
@@ -326,6 +331,8 @@ export default function App({ onLogout }) {
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
+  const [showAgents, setShowAgents] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
   const [resetNotice, setResetNotice] = useState(null);
@@ -496,6 +503,17 @@ export default function App({ onLogout }) {
   if (showAdmin) {
     return <AdminPage onClose={() => setShowAdmin(false)} />;
   }
+  if (showUsers) {
+    return <UsersPage onClose={() => setShowUsers(false)} />;
+  }
+  if (showAgents) {
+    return (
+      <AgentsPage
+        projectSlug={selectedProject}
+        onClose={() => setShowAgents(false)}
+      />
+    );
+  }
 
   return (
     <div className="page-shell">
@@ -514,13 +532,33 @@ export default function App({ onLogout }) {
               {runningCount} em execução
             </div>
           )}
-          <button
-            type="button"
-            className="toolbar-btn"
-            onClick={() => setShowAdmin(true)}
-          >
-            Admin agentes
-          </button>
+          {(caps.canManageUsers || isPlatformAdmin) && (
+            <button
+              type="button"
+              className="toolbar-btn"
+              onClick={() => setShowUsers(true)}
+            >
+              Utilizadores
+            </button>
+          )}
+          {caps.canWrite && (
+            <button
+              type="button"
+              className="toolbar-btn"
+              onClick={() => setShowAgents(true)}
+            >
+              Agentes
+            </button>
+          )}
+          {isPlatformAdmin && (
+            <button
+              type="button"
+              className="toolbar-btn"
+              onClick={() => setShowAdmin(true)}
+            >
+              Admin plataforma
+            </button>
+          )}
           {onLogout && (
             <button type="button" className="toolbar-btn" onClick={onLogout}>
               Sair
@@ -534,9 +572,14 @@ export default function App({ onLogout }) {
           projects={projects}
           selectedProject={selectedProject}
           onProjectChange={setSelectedProject}
-          onNewProject={() => setShowNewProjectModal(true)}
+          canWrite={caps.canWrite}
+          onNewProject={
+            caps.canWrite ? () => setShowNewProjectModal(true) : undefined
+          }
           onResetProject={
-            selectedProject ? () => handleResetProject() : undefined
+            caps.canWrite && selectedProject
+              ? () => handleResetProject()
+              : undefined
           }
           resetting={resetting}
           runningCount={runningCount}
@@ -638,6 +681,8 @@ export default function App({ onLogout }) {
         selectedProject={selectedProject}
         macroId={scopeState?.macroId}
         autorun={autorun}
+        canExecute={caps.canExecute}
+        canWrite={caps.canWrite}
         onAutorunChange={handleAutorunChange}
         tasks={tasks}
         detailTaskId={detailTaskId}
