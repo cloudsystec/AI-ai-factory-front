@@ -9,6 +9,8 @@ import TaskDetailModal from "./TaskDetailModal.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
 import RunnerSidebar from "./RunnerSidebar.jsx";
 import BillingPanel from "./BillingPanel.jsx";
+import ProjectBar from "./ProjectBar.jsx";
+import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import AdminPage from "./AdminPage.jsx";
 import { apiFetch } from "./api.js";
 
@@ -217,7 +219,7 @@ function isScopeStateRenderable(scope) {
   );
 }
 
-function ScopeStrip({ scope }) {
+function ScopeStrip({ scope, onOpenDetail }) {
   if (!isScopeStateRenderable(scope)) {
     return (
       <section className="scope-strip scope-strip--loading msg msg--muted">
@@ -232,32 +234,49 @@ function ScopeStrip({ scope }) {
     pendingTl: 0,
     todoApproved: 0,
   };
-  const paths = scope.paths ?? { macro: "", micro: "", backlog: "" };
 
   return (
-    <section className="scope-strip" aria-labelledby="scope-current-heading">
-      <div className="scope-strip__top">
-        <span className="scope-strip__eyebrow">Planeamento</span>
-        <div className="scope-strip__title-row">
-          <h2 id="scope-current-heading" className="scope-strip__current">
-            {scope.current.label}
-          </h2>
-          {scope.devPipelineActive && (
-            <span className="scope-strip__live">
-              <span className="pipeline-live-badge__dot" aria-hidden />
-              Em desenvolvimento
-            </span>
-          )}
+    <section
+      className="scope-strip scope-strip--compact"
+      aria-labelledby="scope-current-heading"
+    >
+      <div className="scope-strip__top scope-strip__top--compact">
+        <div className="scope-strip__compact-main">
+          <span className="scope-strip__eyebrow">Planeamento</span>
+          <div className="scope-strip__title-row">
+            <h2 id="scope-current-heading" className="scope-strip__current">
+              {scope.current.label}
+            </h2>
+            {scope.devPipelineActive && (
+              <span className="scope-strip__live">
+                <span className="pipeline-live-badge__dot" aria-hidden />
+                Em desenvolvimento
+              </span>
+            )}
+          </div>
+          <p className="scope-strip__summary-line">
+            {scope.macroId}
+            {scope.openMicro
+              ? ` · ${scope.openMicro.title}`
+              : scope.wavesCompleteScenario
+                ? " · fases concluídas"
+                : ""}
+            {" · "}
+            {waveStats.todoApproved} prontas · {waveStats.pendingTl} em revisão
+          </p>
         </div>
-        {scope.current.hint && (
-          <details className="scope-strip__hint-details">
-            <summary>Próximo passo sugerido</summary>
-            <p className="scope-strip__hint">{scope.current.hint}</p>
-          </details>
+        {onOpenDetail && (
+          <button
+            type="button"
+            className="scope-strip__detail-btn"
+            onClick={onOpenDetail}
+          >
+            Detalhes
+          </button>
         )}
       </div>
 
-      <div className="scope-strip__steps" role="list">
+      <div className="scope-strip__steps scope-strip__steps--compact" role="list">
         {scope.scopeSteps.map((step, i) => (
           <React.Fragment key={step.key}>
             {i > 0 && (
@@ -285,64 +304,6 @@ function ScopeStrip({ scope }) {
           </React.Fragment>
         ))}
       </div>
-
-      <dl className="scope-strip__stats">
-        <div>
-          <dt>Produto</dt>
-          <dd>{scope.macroId}</dd>
-        </div>
-        <div>
-          <dt>Fases</dt>
-          <dd>
-            {scope.microCount ?? 0} no total · {scope.microsApproved ?? 0} validadas
-            {(scope.microsPendingPo ?? 0) > 0
-              ? ` · ${scope.microsPendingPo} em revisão`
-              : ""}
-          </dd>
-        </div>
-        <div>
-          <dt>Fase atual</dt>
-          <dd>
-            {scope.openMicro ? (
-              <span className="scope-strip__micro-title">{scope.openMicro.title}</span>
-            ) : scope.wavesCompleteScenario ? (
-              "Todas as fases concluídas"
-            ) : (
-              "—"
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Tarefas na fase</dt>
-          <dd>
-            {waveStats.total} planejadas · {waveStats.pendingTl} em revisão ·{" "}
-            {waveStats.todoApproved} prontas para executar
-          </dd>
-        </div>
-      </dl>
-
-      {(paths.macro || paths.micro || paths.backlog) && (
-        <details className="scope-strip__paths">
-          <summary>Referência técnica (ficheiros)</summary>
-          <ul>
-            {paths.macro && (
-              <li>
-                <code>{paths.macro}</code>
-              </li>
-            )}
-            {paths.micro && (
-              <li>
-                <code>{paths.micro}</code>
-              </li>
-            )}
-            {paths.backlog && (
-              <li>
-                <code>{paths.backlog}</code>
-              </li>
-            )}
-          </ul>
-        </details>
-      )}
     </section>
   );
 }
@@ -358,6 +319,7 @@ export default function App({ onLogout }) {
   });
   const [tasks, setTasks] = useState([]);
   const [scopeState, setScopeState] = useState(null);
+  const [dashboardPollFast, setDashboardPollFast] = useState(false);
   const [autorun, setAutorun] = useState(false);
   const [developSettingsError, setDevelopSettingsError] = useState(null);
   const [detailTaskId, setDetailTaskId] = useState(null);
@@ -367,6 +329,8 @@ export default function App({ onLogout }) {
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
   const [resetNotice, setResetNotice] = useState(null);
+  const [showScopeDetail, setShowScopeDetail] = useState(false);
+  const [billingSummary, setBillingSummary] = useState(null);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -400,6 +364,7 @@ export default function App({ onLogout }) {
     if (!selectedProject) return;
     const q = encodeURIComponent(selectedProject);
     try {
+      let pollFast = false;
       const [tasksRes, scopeRes, settingsRes] = await Promise.all([
         apiFetch(`/api/tasks?project=${q}`),
         apiFetch(`/api/scope-state?project=${q}`),
@@ -408,7 +373,14 @@ export default function App({ onLogout }) {
 
       if (tasksRes.ok) {
         const data = await tasksRes.json();
-        setTasks(Array.isArray(data) ? data : []);
+        if (Array.isArray(data)) {
+          setTasks(data);
+        } else if (data && Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+          if (data.meta?.activeJobId) pollFast = true;
+        } else {
+          setTasks([]);
+        }
       } else {
         setTasks([]);
       }
@@ -416,9 +388,12 @@ export default function App({ onLogout }) {
       if (scopeRes.ok) {
         const scopeJson = await scopeRes.json();
         setScopeState(scopeJson);
+        if (scopeJson?.dashboardMeta?.activeJobId) pollFast = true;
       } else {
         setScopeState(null);
       }
+
+      setDashboardPollFast(pollFast);
 
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
@@ -443,9 +418,10 @@ export default function App({ onLogout }) {
     }
 
     loadDashboardData();
-    const interval = setInterval(loadDashboardData, 1500);
+    const pollMs = dashboardPollFast ? 800 : 1500;
+    const interval = setInterval(loadDashboardData, pollMs);
     return () => clearInterval(interval);
-  }, [selectedProject, loadDashboardData]);
+  }, [selectedProject, loadDashboardData, dashboardPollFast]);
 
   const handleResetProject = useCallback(async () => {
     if (!selectedProject || resetting) return;
@@ -553,47 +529,19 @@ export default function App({ onLogout }) {
         </div>
       </header>
 
-      <BillingPanel />
-
-      <div className="toolbar">
-        <label htmlFor="project-select" className="toolbar-label">
-          Projeto
-        </label>
-        <select
-          id="project-select"
-          className="toolbar-select"
-          value={selectedProject}
-          onChange={(e) => setSelectedProject(e.target.value)}
-        >
-          <option value="">Selecione um projeto</option>
-          {projects.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="toolbar-btn toolbar-btn--primary"
-          onClick={() => setShowNewProjectModal(true)}
-        >
-          Novo projeto
-        </button>
-        {selectedProject && (
-          <button
-            type="button"
-            className="toolbar-btn toolbar-btn--danger"
-            disabled={resetting || runningCount > 0}
-            title={
-              runningCount > 0
-                ? "Aguarde o fim das tarefas em execução ou interrompa o job"
-                : "Backup ZIP + apagar workspace; restaurar escopo macro da BD"
-            }
-            onClick={() => handleResetProject()}
-          >
-            {resetting ? "A repor…" : "Reset projeto"}
-          </button>
-        )}
+      <div className="top-panels">
+        <ProjectBar
+          projects={projects}
+          selectedProject={selectedProject}
+          onProjectChange={setSelectedProject}
+          onNewProject={() => setShowNewProjectModal(true)}
+          onResetProject={
+            selectedProject ? () => handleResetProject() : undefined
+          }
+          resetting={resetting}
+          runningCount={runningCount}
+        />
+        <BillingPanel compact onSummary={setBillingSummary} />
       </div>
 
       {resetNotice && (
@@ -618,7 +566,10 @@ export default function App({ onLogout }) {
 
       {selectedProject &&
         (scopeState !== null ? (
-          <ScopeStrip scope={scopeState} />
+          <ScopeStrip
+            scope={scopeState}
+            onOpenDetail={() => setShowScopeDetail(true)}
+          />
         ) : (
           <p className="scope-strip scope-strip--loading msg msg--muted">
             A carregar estado do escopo…
@@ -660,6 +611,7 @@ export default function App({ onLogout }) {
           project={selectedProject}
           taskId={detailTaskId}
           runtimeSnapshot={tasks.find((t) => t.id === detailTaskId) ?? null}
+          dashboardPollFast={dashboardPollFast}
           onClose={() => setDetailTaskId(null)}
         />
       )}
@@ -673,6 +625,13 @@ export default function App({ onLogout }) {
           }}
         />
       )}
+
+      {showScopeDetail && scopeState && (
+        <ScopeDetailModal
+          scope={scopeState}
+          onClose={() => setShowScopeDetail(false)}
+        />
+      )}
       </main>
 
       <RunnerSidebar
@@ -682,6 +641,8 @@ export default function App({ onLogout }) {
         onAutorunChange={handleAutorunChange}
         tasks={tasks}
         detailTaskId={detailTaskId}
+        onDashboardRefresh={loadDashboardData}
+        billingSummary={billingSummary}
       />
     </div>
   );

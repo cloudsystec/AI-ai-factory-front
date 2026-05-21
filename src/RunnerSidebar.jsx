@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useJobRunner } from "./useJobRunner.js";
+import WorkerRobots from "./WorkerRobots.jsx";
+import RunnerControlsModal from "./RunnerControlsModal.jsx";
 
 function statusMeta(status) {
   switch (status) {
@@ -30,11 +32,18 @@ function streamStatusLabel(status) {
     case "connected":
       return "Log em tempo real";
     case "reconnecting":
-      return "A reconectar… (polling ativo)";
+      return "A reconectar…";
     default:
       return "Log offline";
   }
 }
+
+const KIND_SHORT = {
+  scope: "Escopo",
+  "scope-tasks-only": "Onda",
+  develop: "Fila",
+  task: "Task",
+};
 
 /**
  * @param {{
@@ -44,6 +53,8 @@ function streamStatusLabel(status) {
  *   onAutorunChange: (checked: boolean) => void,
  *   tasks: object[],
  *   detailTaskId: string|null,
+ *   onDashboardRefresh?: () => void | Promise<void>,
+ *   billingSummary: object|null,
  * }} props
  */
 export default function RunnerSidebar({
@@ -53,6 +64,8 @@ export default function RunnerSidebar({
   onAutorunChange,
   tasks,
   detailTaskId,
+  onDashboardRefresh,
+  billingSummary,
 }) {
   const {
     job,
@@ -63,9 +76,13 @@ export default function RunnerSidebar({
     logScrollRef,
     logStreamStatus,
     startJob,
+    selectJob,
     sendInput,
     cancelJob,
-  } = useJobRunner(selectedProject);
+  } = useJobRunner(selectedProject, { onDashboardRefresh });
+
+  const [showControls, setShowControls] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState("");
 
   const eligibleTasks = useMemo(
     () =>
@@ -76,8 +93,6 @@ export default function RunnerSidebar({
       ),
     [tasks]
   );
-
-  const [selectedTaskId, setSelectedTaskId] = useState("");
 
   useEffect(() => {
     if (detailTaskId) {
@@ -99,132 +114,68 @@ export default function RunnerSidebar({
     ? `Projeto ${selectedProject} · macro ${macroId}`
     : "Selecione um projeto com escopo definido";
 
+  const slotsMax = billingSummary?.agentSlotsMax ?? 1;
+  const slotsInUse = billingSummary?.agentSlotsInUse ?? 0;
+  const activeJobs = billingSummary?.activeJobs ?? [];
+
+  const execLine = job
+    ? `${KIND_SHORT[job.kind] || job.kind} · ${status.label}${
+        job.taskId ? ` · ${truncate(job.taskId, 16)}` : ""
+      }`
+    : "Nenhuma execução ativa";
+
   return (
     <aside className="runner-sidebar" aria-label="Controlo de execução">
-      <header className="runner-sidebar__head">
+      <header className="runner-sidebar__head runner-sidebar__head--compact">
         <div className="runner-sidebar__head-row">
-          <h2 className="runner-sidebar__title">Controlo</h2>
-          <span className={`runner-pill ${status.className}`} aria-live="polite">
-            {status.label}
-          </span>
+          <h2 className="runner-sidebar__title">Execução</h2>
+          {selectedProject && (
+            <label
+              className="runner-autorun"
+              title="Avançar automaticamente para a próxima tarefa"
+            >
+              <input
+                type="checkbox"
+                className="runner-autorun__input"
+                checked={autorun}
+                onChange={(e) => onAutorunChange(e.target.checked)}
+              />
+              <span className="runner-autorun__label">Auto</span>
+            </label>
+          )}
         </div>
-        {selectedProject && (
-          <label className="runner-autorun" title="Avançar automaticamente para a próxima tarefa após cada entrega">
-            <input
-              type="checkbox"
-              className="runner-autorun__input"
-              checked={autorun}
-              onChange={(e) => onAutorunChange(e.target.checked)}
-            />
-            <span className="runner-autorun__label">Automático</span>
-          </label>
-        )}
       </header>
 
-      <section className="runner-sidebar__actions">
-        <p className="runner-group__label">Planeamento</p>
-        <div className="runner-btn-grid">
-          <button
-            type="button"
-            className="runner-btn"
-            disabled={disabled || !macroId}
-            onClick={() => startJob({ kind: "scope" })}
-            title={scopeTitle}
-          >
-            Gerar escopo
-          </button>
-          <button
-            type="button"
-            className="runner-btn"
-            disabled={disabled || !macroId}
-            onClick={() => startJob({ kind: "scope-tasks-only" })}
-            title="Planeia apenas as tarefas da fase atual"
-          >
-            Nova onda
-          </button>
-        </div>
+      <WorkerRobots
+        slotsMax={slotsMax}
+        slotsInUse={slotsInUse}
+        activeJobs={activeJobs}
+        selectedJobId={job?.id ?? null}
+        onSelectSlot={(jobId) => {
+          if (jobId) void selectJob(jobId);
+        }}
+      />
 
-        <p className="runner-group__label">Desenvolvimento</p>
+      <div className="runner-sidebar__exec-bar">
+        <span className={`runner-pill ${status.className}`} aria-live="polite">
+          {status.label}
+        </span>
+        <p className="runner-sidebar__exec-line" title={job?.id}>
+          {execLine}
+        </p>
         <button
           type="button"
-          className="runner-btn runner-btn--primary"
-          disabled={disabled || !macroId}
-          onClick={() => startJob({ kind: "develop" })}
-          title="Executa a fila de tarefas aprovadas da fase atual"
+          className="runner-sidebar__detail-btn"
+          disabled={!selectedProject}
+          onClick={() => setShowControls(true)}
         >
-          Iniciar fila
+          Controlo
         </button>
-
-        <p className="runner-group__label">Tarefa pontual</p>
-        <div className="runner-sidebar__task-row">
-          <select
-            id="runner-task-select"
-            className="runner-sidebar__select"
-            value={selectedTaskId}
-            onChange={(e) => setSelectedTaskId(e.target.value)}
-            disabled={disabled}
-            aria-label="Tarefa"
-          >
-            <option value="">Escolher tarefa…</option>
-            {eligibleTasks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {truncate(t.title || t.id, 42)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="runner-btn"
-            disabled={disabled || !selectedTaskId}
-            onClick={() => startJob({ kind: "task", taskId: selectedTaskId })}
-          >
-            Executar
-          </button>
-        </div>
-
-        {isBusy && (
-          <button
-            type="button"
-            className="runner-btn runner-btn--danger"
-            onClick={() => cancelJob()}
-          >
-            Interromper
-          </button>
-        )}
-
-        {job?.status === "waiting_input" && (
-          <div
-            className="runner-sidebar__prompt"
-            role="group"
-            aria-label="Continuar fila de desenvolvimento"
-          >
-            <p className="runner-sidebar__prompt-text">Continuar com a próxima tarefa?</p>
-            <div className="runner-sidebar__prompt-btns">
-              <button
-                type="button"
-                className="runner-btn runner-btn--primary"
-                onClick={() => sendInput("S")}
-              >
-                Sim, continuar
-              </button>
-              <button type="button" className="runner-btn" onClick={() => sendInput("N")}>
-                Parar
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      </div>
 
       {error && <p className="runner-sidebar__error">{error}</p>}
 
-      {job?.command && (
-        <details className="runner-sidebar__tech">
-          <summary>Detalhe técnico</summary>
-          <code className="runner-sidebar__cmd">{job.command}</code>
-        </details>
-      )}
-
-      <section className="runner-sidebar__log-wrap">
+      <section className="runner-sidebar__log-wrap runner-sidebar__log-wrap--tall">
         <div className="runner-sidebar__log-head">
           <h3 className="runner-sidebar__log-title">Registo</h3>
           {job?.id && (
@@ -240,7 +191,6 @@ export default function RunnerSidebar({
           {isBusy && (
             <span
               className={`runner-sidebar__stream runner-sidebar__stream--${logStreamStatus}`}
-              title={streamStatusLabel(logStreamStatus)}
             >
               {streamStatusLabel(logStreamStatus)}
             </span>
@@ -248,9 +198,30 @@ export default function RunnerSidebar({
         </div>
         <pre ref={logScrollRef} className="runner-sidebar__log">
           {logText ||
-            (isBusy ? "…" : hasLog ? "" : "Nenhuma execução para este projeto.")}
+            (isBusy ? "…" : hasLog ? "" : "Selecione um worker ou inicie um job.")}
         </pre>
       </section>
+
+      {showControls && (
+        <RunnerControlsModal
+          onClose={() => setShowControls(false)}
+          scopeTitle={scopeTitle}
+          disabled={disabled}
+          macroId={macroId}
+          isBusy={isBusy}
+          jobWaitingInput={job?.status === "waiting_input"}
+          eligibleTasks={eligibleTasks}
+          selectedTaskId={selectedTaskId}
+          onTaskIdChange={setSelectedTaskId}
+          onStartScope={() => startJob({ kind: "scope" })}
+          onStartScopeTasksOnly={() => startJob({ kind: "scope-tasks-only" })}
+          onStartDevelop={() => startJob({ kind: "develop" })}
+          onStartTask={() => startJob({ kind: "task", taskId: selectedTaskId })}
+          onCancel={() => cancelJob()}
+          onSendInput={sendInput}
+          jobCommand={job?.command}
+        />
+      )}
     </aside>
   );
 }

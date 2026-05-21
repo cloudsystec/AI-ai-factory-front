@@ -8,6 +8,8 @@ import { AGENT_ROLE_KEYS } from "./agentRoleKeys.js";
 export default function AdminPage({ onClose }) {
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [projectSlug, setProjectSlug] = useState("");
   const [mode, setMode] = useState("templates");
   const [roleKey, setRoleKey] = useState("global");
   const [content, setContent] = useState("");
@@ -24,29 +26,57 @@ export default function AdminPage({ onClose }) {
     }
   }, []);
 
+  const loadProjects = useCallback(async () => {
+    if (!tenantId) {
+      setProjects([]);
+      setProjectSlug("");
+      return;
+    }
+    const res = await apiFetch(`/admin/tenants/${tenantId}/projects`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const list = data.projects || [];
+    setProjects(list);
+    setProjectSlug((prev) => {
+      if (prev && list.some((p) => p.slug === prev)) return prev;
+      return list[0]?.slug || "";
+    });
+  }, [tenantId]);
+
   const loadContent = useCallback(async () => {
     setError(null);
     setMessage(null);
     const path =
       mode === "templates"
         ? `/admin/agent-templates`
-        : `/admin/tenants/${tenantId}/agents`;
+        : `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents`;
     const res = await apiFetch(path);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const list = mode === "templates" ? data.templates : data.overrides;
     const row = (list || []).find((r) => r.role_key === roleKey);
     setContent(row?.content || "");
-  }, [mode, tenantId, roleKey]);
+  }, [mode, tenantId, projectSlug, roleKey]);
 
   useEffect(() => {
     loadTenants().catch((e) => setError(e.message));
   }, [loadTenants]);
 
   useEffect(() => {
-    if (mode === "tenant" && !tenantId) return;
-    loadContent().catch((e) => setError(e.message));
-  }, [loadContent, mode, tenantId]);
+    if (mode === "project" && tenantId) {
+      loadProjects().catch((e) => setError(e.message));
+    }
+  }, [mode, tenantId, loadProjects]);
+
+  useEffect(() => {
+    if (mode === "templates") {
+      loadContent().catch((e) => setError(e.message));
+      return;
+    }
+    if (mode === "project" && tenantId && projectSlug) {
+      loadContent().catch((e) => setError(e.message));
+    }
+  }, [loadContent, mode, tenantId, projectSlug]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -56,7 +86,7 @@ export default function AdminPage({ onClose }) {
       const url =
         mode === "templates"
           ? `/admin/agent-templates/${roleKey}`
-          : `/admin/tenants/${tenantId}/agents/${roleKey}`;
+          : `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents/${roleKey}`;
       const res = await apiFetch(url, {
         method: "PUT",
         body: JSON.stringify({ content }),
@@ -66,7 +96,9 @@ export default function AdminPage({ onClose }) {
         throw new Error(body.error || res.statusText);
       }
       setMessage(
-        "Guardado. Reinicie o worker CLI do tenant (ou AGENT_SYNC_EACH_CLAIM=true) para aplicar no disco."
+        mode === "project"
+          ? "Guardado. O próximo job deste projeto sincroniza para workspaces/<slug>/agents/."
+          : "Template guardado (projetos novos herdam no clone inicial)."
       );
     } catch (err) {
       setError(err.message || String(err));
@@ -74,13 +106,21 @@ export default function AdminPage({ onClose }) {
   }
 
   async function handleReset() {
-    if (!tenantId) return;
+    if (!tenantId || !projectSlug) return;
+    if (
+      !window.confirm(
+        `Repor agentes do projeto "${projectSlug}" aos templates da plataforma?`
+      )
+    ) {
+      return;
+    }
     setError(null);
-    const res = await apiFetch(`/admin/tenants/${tenantId}/agents/reset`, {
-      method: "POST",
-    });
+    const res = await apiFetch(
+      `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents/reset`,
+      { method: "POST" }
+    );
     if (!res.ok) throw new Error(await res.text());
-    setMessage("Overrides repostos aos templates.");
+    setMessage("Agentes do projeto repostos aos templates.");
     await loadContent();
   }
 
@@ -98,20 +138,40 @@ export default function AdminPage({ onClose }) {
           Modo
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
             <option value="templates">Templates plataforma</option>
-            <option value="tenant">Overrides por cliente</option>
+            <option value="project">Overrides por projeto</option>
           </select>
         </label>
-        {mode === "tenant" && (
-          <label>
-            Tenant
-            <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.email}
-                </option>
-              ))}
-            </select>
-          </label>
+        {mode === "project" && (
+          <>
+            <label>
+              Tenant
+              <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Projeto
+              <select
+                value={projectSlug}
+                onChange={(e) => setProjectSlug(e.target.value)}
+                disabled={projects.length === 0}
+              >
+                {projects.length === 0 ? (
+                  <option value="">Sem projetos</option>
+                ) : (
+                  projects.map((p) => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.slug}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+          </>
         )}
         <label>
           Role
@@ -123,9 +183,9 @@ export default function AdminPage({ onClose }) {
             ))}
           </select>
         </label>
-        {mode === "tenant" && (
+        {mode === "project" && projectSlug && (
           <button type="button" className="toolbar-btn" onClick={handleReset}>
-            Repor defaults
+            Repor defaults do projeto
           </button>
         )}
       </div>
@@ -146,7 +206,11 @@ export default function AdminPage({ onClose }) {
           placeholder="Markdown do agente…"
         />
         <div className="new-project-form__actions">
-          <button type="submit" className="toolbar-btn toolbar-btn--primary">
+          <button
+            type="submit"
+            className="toolbar-btn toolbar-btn--primary"
+            disabled={mode === "project" && !projectSlug}
+          >
             Guardar
           </button>
         </div>

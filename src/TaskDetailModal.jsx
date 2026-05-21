@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import MarkdownPreview from "./MarkdownPreview.jsx";
-import { isPipelineRunning } from "./pipeline.js";
+import { buildPipelineSummary, isPipelineRunning } from "./pipeline.js";
 import { apiFetch } from "./api.js";
 
 function formatUpdated(iso) {
@@ -16,6 +16,19 @@ function formatUpdated(iso) {
   } catch {
     return String(iso);
   }
+}
+
+/** @param {unknown} value */
+function formatMarkdownField(value) {
+  if (value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value)) {
+    const lines = value
+      .map((item) => (typeof item === "string" ? item.trim() : String(item)))
+      .filter(Boolean);
+    return lines.length > 0 ? lines.map((line) => `- ${line}`).join("\n") : null;
+  }
+  return String(value);
 }
 
 function pipelineStepIcon(state) {
@@ -56,8 +69,14 @@ function ArtifactRow({ artifact }) {
   );
 }
 
-/** @param {{ project: string, taskId: string, runtimeSnapshot: object|null, onClose: () => void }} props */
-export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onClose }) {
+/** @param {{ project: string, taskId: string, runtimeSnapshot: object|null, dashboardPollFast?: boolean, onClose: () => void }} props */
+export default function TaskDetailModal({
+  project,
+  taskId,
+  runtimeSnapshot,
+  dashboardPollFast = false,
+  onClose,
+}) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,21 +93,25 @@ export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onCl
 
   useEffect(() => {
     let cancelled = false;
+    setDetail(null);
+    setLoading(true);
+    setError(null);
 
     async function load() {
-      setLoading(true);
-      setError(null);
       try {
         const data = await fetchDetail();
         if (!cancelled) {
           setDetail(data);
-          setLoading(false);
+          setError(null);
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e.message || String(e));
-          setLoading(false);
+          if (!runtimeSnapshot) {
+            setError(e.message || String(e));
+          }
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -96,26 +119,50 @@ export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onCl
     return () => {
       cancelled = true;
     };
-  }, [fetchDetail]);
+  }, [fetchDetail, taskId, project]);
 
   const running =
     isPipelineRunning(runtimeSnapshot) ||
     (detail?.runtime && isPipelineRunning(detail.runtime));
 
+  const shouldPollDetail =
+    running || dashboardPollFast || isPipelineRunning(runtimeSnapshot);
+
   useEffect(() => {
-    if (!running) return undefined;
+    if (!shouldPollDetail) return undefined;
 
     const interval = setInterval(async () => {
       try {
         const data = await fetchDetail();
         setDetail(data);
+        setError(null);
       } catch {
         /* mantém último estado válido */
       }
-    }, 1500);
+    }, dashboardPollFast ? 800 : 1500);
 
     return () => clearInterval(interval);
-  }, [running, fetchDetail]);
+  }, [shouldPollDetail, fetchDetail, dashboardPollFast]);
+
+  useEffect(() => {
+    if (!shouldPollDetail) return undefined;
+    const snap = runtimeSnapshot;
+    if (!snap?.updatedAt && !snap?.status && !snap?.currentAgent) return undefined;
+
+    fetchDetail()
+      .then((data) => {
+        setDetail(data);
+        setError(null);
+      })
+      .catch(() => {});
+  }, [
+    runtimeSnapshot?.updatedAt,
+    runtimeSnapshot?.status,
+    runtimeSnapshot?.currentAgent,
+    shouldPollDetail,
+    fetchDetail,
+    taskId,
+  ]);
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -128,7 +175,10 @@ export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onCl
   const runtime = detail?.runtime ?? runtimeSnapshot;
   const title =
     detail?.backlog?.title ?? runtime?.title ?? runtimeSnapshot?.title ?? taskId;
-  const pipeline = detail?.pipeline;
+  const pipeline =
+    detail?.pipeline ??
+    (runtime ? buildPipelineSummary(runtime) : null);
+  const partialOnly = !detail && Boolean(runtimeSnapshot);
 
   return (
     <div
@@ -157,10 +207,19 @@ export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onCl
         </header>
 
         <div className="modal-panel__body">
-          {loading && !detail && <p className="msg msg--muted">A carregar detalhe…</p>}
-          {error && <p className="msg msg--error">{error}</p>}
+          {loading && !detail && !runtimeSnapshot && (
+            <p className="msg msg--muted">A carregar detalhe…</p>
+          )}
+          {error && !detail && !runtimeSnapshot && (
+            <p className="msg msg--error">{error}</p>
+          )}
+          {partialOnly && !loading && (
+            <p className="msg msg--muted">
+              Vista parcial do Kanban — a sincronizar descrição e artefatos…
+            </p>
+          )}
 
-          {!error && (detail || runtimeSnapshot) && (
+          {(detail || runtimeSnapshot) && (
             <>
               <section className="task-detail-section">
                 <h3 className="task-detail-section__title">Execução</h3>
@@ -246,22 +305,28 @@ export default function TaskDetailModal({ project, taskId, runtimeSnapshot, onCl
                       </div>
                     )}
                   </dl>
-                  {detail.backlog.description && (
+                  {formatMarkdownField(detail.backlog.description) && (
                     <div className="task-detail-block">
                       <h4>Descrição</h4>
-                      <MarkdownPreview content={detail.backlog.description} />
+                      <MarkdownPreview
+                        content={formatMarkdownField(detail.backlog.description)}
+                      />
                     </div>
                   )}
-                  {detail.backlog.acceptance && (
+                  {formatMarkdownField(detail.backlog.acceptance) && (
                     <div className="task-detail-block">
                       <h4>Critérios de aceite</h4>
-                      <MarkdownPreview content={detail.backlog.acceptance} />
+                      <MarkdownPreview
+                        content={formatMarkdownField(detail.backlog.acceptance)}
+                      />
                     </div>
                   )}
-                  {detail.backlog.testStrategy && (
+                  {formatMarkdownField(detail.backlog.testStrategy) && (
                     <div className="task-detail-block">
                       <h4>Estratégia de teste</h4>
-                      <MarkdownPreview content={detail.backlog.testStrategy} />
+                      <MarkdownPreview
+                        content={formatMarkdownField(detail.backlog.testStrategy)}
+                      />
                     </div>
                   )}
                 </section>

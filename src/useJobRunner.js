@@ -4,6 +4,7 @@ import { ACTIVE_JOB_STATUSES, isJobActive } from "./job-status.js";
 
 const LOG_POLL_MS = 2500;
 const STATUS_POLL_MS = 2000;
+const DASHBOARD_REFRESH_MS = 3000;
 const MAX_SSE_RECONNECT = 6;
 
 /**
@@ -27,8 +28,16 @@ function jobFromApi(apiJob) {
 
 /**
  * @param {string} selectedProject
+ * @param {{ onDashboardRefresh?: () => void | Promise<void> }} [options]
  */
-export function useJobRunner(selectedProject) {
+export function useJobRunner(selectedProject, options = {}) {
+  const onDashboardRefreshRef = useRef(options.onDashboardRefresh);
+  onDashboardRefreshRef.current = options.onDashboardRefresh;
+
+  const triggerDashboardRefresh = useCallback(() => {
+    const fn = onDashboardRefreshRef.current;
+    if (fn) void Promise.resolve(fn()).catch(() => {});
+  }, []);
   const [job, setJob] = useState(null);
   const [logText, setLogText] = useState("");
   const [error, setError] = useState(null);
@@ -117,12 +126,18 @@ export function useJobRunner(selectedProject) {
         intentionalCloseRef.current = true;
         disconnectEvents();
         await fetchJobLog(apiJob.id);
+        triggerDashboardRefresh();
       } else if (!wasActive && isActive && !eventSourceRef.current) {
         reconnectAttemptRef.current = 0;
         connectEventsImplRef.current?.(apiJob.id);
+        triggerDashboardRefresh();
+      }
+
+      if (prevStatus !== nextStatus) {
+        triggerDashboardRefresh();
       }
     },
-    [disconnectEvents, fetchJobLog]
+    [disconnectEvents, fetchJobLog, triggerDashboardRefresh]
   );
 
   syncJobStatusImplRef.current = syncJobStatusFromApi;
@@ -160,6 +175,8 @@ export function useJobRunner(selectedProject) {
               const next = prev ? `${prev}\n${payload.text}` : payload.text;
               return next;
             });
+          } else if (payload.type === "dashboard") {
+            triggerDashboardRefresh();
           } else if (payload.type === "status" && payload.status) {
             jobStatusRef.current = payload.status;
             setJob((prev) =>
@@ -251,7 +268,7 @@ export function useJobRunner(selectedProject) {
         }, delay);
       };
     },
-    [fetchJobLog, fetchJobDetail]
+    [fetchJobLog, fetchJobDetail, triggerDashboardRefresh]
   );
 
   connectEventsImplRef.current = connectEvents;
@@ -272,6 +289,25 @@ export function useJobRunner(selectedProject) {
       }
     },
     [setJobSync, fetchJobLog, connectEvents, disconnectEvents]
+  );
+
+  const selectJob = useCallback(
+    async (jobId) => {
+      if (!jobId) return;
+      setError(null);
+      disconnectEvents();
+      try {
+        const fresh = await fetchJobDetail(jobId);
+        if (!fresh) {
+          setError("Job não encontrado");
+          return;
+        }
+        await applyJobFromApi(fresh);
+      } catch (e) {
+        setError(e.message || String(e));
+      }
+    },
+    [disconnectEvents, fetchJobDetail, applyJobFromApi]
   );
 
   const refreshRunner = useCallback(async () => {
@@ -333,6 +369,15 @@ export function useJobRunner(selectedProject) {
 
     return () => clearInterval(timer);
   }, [job?.id, job?.status, fetchJobLog]);
+
+  useEffect(() => {
+    const status = job?.status;
+    if (!status || !isJobActive(status)) return undefined;
+
+    triggerDashboardRefresh();
+    const timer = window.setInterval(triggerDashboardRefresh, DASHBOARD_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [job?.status, triggerDashboardRefresh]);
 
   useEffect(() => {
     const el = logScrollRef.current;
@@ -430,6 +475,7 @@ export function useJobRunner(selectedProject) {
     logStreamStatus,
     logScrollRef,
     startJob,
+    selectJob,
     sendInput: async () => {},
     cancelJob,
   };

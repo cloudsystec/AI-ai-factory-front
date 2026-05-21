@@ -1,20 +1,28 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import UsageEventsModal from "./UsageEventsModal.jsx";
 
-export default function BillingPanel() {
+/**
+ * @param {{ compact?: boolean, onSummary?: (summary: object|null) => void }} [props]
+ */
+export default function BillingPanel({ compact = false, onSummary }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [showEventsModal, setShowEventsModal] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await apiFetch("/api/billing/summary");
       if (!res.ok) throw new Error(await res.text());
-      setSummary(await res.json());
+      const data = await res.json();
+      setSummary(data);
+      onSummary?.(data);
       setError(null);
     } catch (e) {
       setError(e.message || String(e));
+      onSummary?.(null);
     }
-  }, []);
+  }, [onSummary]);
 
   useEffect(() => {
     load();
@@ -23,57 +31,77 @@ export default function BillingPanel() {
   }, [load]);
 
   if (error) {
-    return <p className="msg msg--error">Consumo: {error}</p>;
+    return (
+      <section className={`billing-panel${compact ? " billing-panel--compact" : ""}`}>
+        <p className="msg msg--error">Consumo: {error}</p>
+      </section>
+    );
   }
   if (!summary) {
-    return <p className="msg msg--muted">A carregar consumo…</p>;
+    return (
+      <section className={`billing-panel${compact ? " billing-panel--compact" : ""}`}>
+        <p className="msg msg--muted">A carregar consumo…</p>
+      </section>
+    );
   }
 
   return (
-    <section className="billing-panel">
-      <h2 className="billing-panel__title">Consumo</h2>
+    <section className={`billing-panel${compact ? " billing-panel--compact" : ""}`}>
+      <div className="billing-panel__head">
+        <h2 className="billing-panel__title">Consumo</h2>
+        {summary.recentUsage?.length > 0 && (
+          <button
+            type="button"
+            className="billing-panel__events-btn billing-panel__events-btn--inline"
+            onClick={() => setShowEventsModal(true)}
+          >
+            Eventos
+            <span className="billing-panel__events-count">
+              {summary.recentUsage.length}
+            </span>
+          </button>
+        )}
+      </div>
       <div className="billing-panel__grid">
         <div>
           <span className="billing-label">Plano</span>
           <strong>{summary.planId}</strong>
         </div>
         <div>
-          <span className="billing-label">Saldo (USD)</span>
-          <strong>{Number(summary.balanceUsd).toFixed(2)}</strong>
+          <span className="billing-label">Saldo</span>
+          <strong>${Number(summary.balanceUsd).toFixed(2)}</strong>
         </div>
         <div>
-          <span className="billing-label">Pool ciclo</span>
-          <strong>{Number(summary.poolCreditCycleUsd).toFixed(2)}</strong>
+          <span className="billing-label">Pool</span>
+          <strong>${Number(summary.poolCreditCycleUsd).toFixed(2)}</strong>
         </div>
         <div>
           <span className="billing-label">Usado</span>
           <strong>
-            {Number(summary.usedUsd).toFixed(2)} ({summary.usedPercent}%)
+            ${Number(summary.usedUsd).toFixed(2)} ({summary.usedPercent}%)
           </strong>
         </div>
-        <div>
-          <span className="billing-label">Worker</span>
-          <strong>{summary.workerStatus}</strong>
-        </div>
-        <div>
-          <span className="billing-label">Slots</span>
-          <strong>
-            {summary.agentSlotsInUse}/{summary.agentSlotsMax}
-          </strong>
-        </div>
+        {!compact && (
+          <>
+            <div>
+              <span className="billing-label">Worker</span>
+              <strong>{summary.workerStatus}</strong>
+            </div>
+            <div>
+              <span className="billing-label">Slots</span>
+              <strong>
+                {summary.agentSlotsInUse}/{summary.agentSlotsMax}
+              </strong>
+            </div>
+          </>
+        )}
       </div>
-      {summary.recentUsage?.length > 0 && (
-        <details className="billing-panel__events">
-          <summary>Últimos eventos</summary>
-          <ul>
-            {summary.recentUsage.map((ev) => (
-              <li key={ev.execution_id}>
-                {ev.status} — ${Number(ev.charge_usd).toFixed(2)} —{" "}
-                {new Date(ev.created_at).toLocaleString("pt-BR")}
-              </li>
-            ))}
-          </ul>
-        </details>
+
+      {showEventsModal && summary.recentUsage?.length > 0 && (
+        <UsageEventsModal
+          events={summary.recentUsage}
+          onClose={() => setShowEventsModal(false)}
+        />
       )}
     </section>
   );
