@@ -21,6 +21,7 @@ export default defineConfig({
       "/dev": { target: "http://localhost:4000", changeOrigin: true },
       "/health": { target: "http://localhost:4000", changeOrigin: true },
       "/admin": { target: "http://localhost:4000", changeOrigin: true },
+      "/webhooks": { target: "http://localhost:4000", changeOrigin: true },
     },
   },
 });

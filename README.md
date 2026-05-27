@@ -9,6 +9,10 @@
 
 Consome **apenas** a API do backend. Não comunica com o CLI nem com Redis diretamente.
 
+## Landing pública
+
+Rota **`/landingpage`** — página de marketing (sem login). Planos redirecionam para Stripe Payment Links configurados em `src/landing/landingConfig.js`.
+
 ## Desenvolvimento interno (localhost)
 
 | Serviço | URL |
