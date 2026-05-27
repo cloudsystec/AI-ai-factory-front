@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import { useSocket } from "./useSocket.jsx";
 import UsageEventsModal from "./UsageEventsModal.jsx";
 
 /**
  * @param {{ compact?: boolean, onSummary?: (summary: object|null) => void }} [props]
  */
 export default function BillingPanel({ compact = false, onSummary }) {
+  const { subscribe } = useSocket();
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [showEventsModal, setShowEventsModal] = useState(false);
@@ -26,9 +28,10 @@ export default function BillingPanel({ compact = false, onSummary }) {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 10_000);
-    return () => clearInterval(id);
-  }, [load]);
+    const fallback = setInterval(load, 60_000);
+    const unsub = subscribe("billing", () => load());
+    return () => { clearInterval(fallback); unsub(); };
+  }, [load, subscribe]);
 
   if (error) {
     return (

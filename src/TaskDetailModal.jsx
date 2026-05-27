@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import MarkdownPreview from "./MarkdownPreview.jsx";
 import { buildPipelineSummary, isPipelineRunning } from "./pipeline.js";
 import { apiFetch } from "./api.js";
+import { useSocket } from "./useSocket.jsx";
 
 function formatUpdated(iso) {
   if (!iso) return "—";
@@ -69,14 +70,14 @@ function ArtifactRow({ artifact }) {
   );
 }
 
-/** @param {{ project: string, taskId: string, runtimeSnapshot: object|null, dashboardPollFast?: boolean, onClose: () => void }} props */
+/** @param {{ project: string, taskId: string, runtimeSnapshot: object|null, onClose: () => void }} props */
 export default function TaskDetailModal({
   project,
   taskId,
   runtimeSnapshot,
-  dashboardPollFast = false,
   onClose,
 }) {
+  const { subscribe } = useSocket();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -125,41 +126,32 @@ export default function TaskDetailModal({
     isPipelineRunning(runtimeSnapshot) ||
     (detail?.runtime && isPipelineRunning(detail.runtime));
 
-  const shouldPollDetail =
-    running || dashboardPollFast || isPipelineRunning(runtimeSnapshot);
+  useEffect(() => {
+    const unsub = subscribe("dashboard", () => {
+      fetchDetail()
+        .then((data) => { setDetail(data); setError(null); })
+        .catch(() => {});
+    });
+    const fallback = running
+      ? setInterval(() => {
+          fetchDetail()
+            .then((data) => { setDetail(data); setError(null); })
+            .catch(() => {});
+        }, 30_000)
+      : null;
+    return () => { unsub(); if (fallback) clearInterval(fallback); };
+  }, [subscribe, fetchDetail, running]);
 
   useEffect(() => {
-    if (!shouldPollDetail) return undefined;
-
-    const interval = setInterval(async () => {
-      try {
-        const data = await fetchDetail();
-        setDetail(data);
-        setError(null);
-      } catch {
-        /* mantém último estado válido */
-      }
-    }, dashboardPollFast ? 800 : 1500);
-
-    return () => clearInterval(interval);
-  }, [shouldPollDetail, fetchDetail, dashboardPollFast]);
-
-  useEffect(() => {
-    if (!shouldPollDetail) return undefined;
     const snap = runtimeSnapshot;
-    if (!snap?.updatedAt && !snap?.status && !snap?.currentAgent) return undefined;
-
+    if (!snap?.updatedAt && !snap?.status && !snap?.currentAgent) return;
     fetchDetail()
-      .then((data) => {
-        setDetail(data);
-        setError(null);
-      })
+      .then((data) => { setDetail(data); setError(null); })
       .catch(() => {});
   }, [
     runtimeSnapshot?.updatedAt,
     runtimeSnapshot?.status,
     runtimeSnapshot?.currentAgent,
-    shouldPollDetail,
     fetchDetail,
     taskId,
   ]);

@@ -4,6 +4,7 @@ import "./App.css";
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
 import { SessionProvider } from "./SessionContext.jsx";
+import { SocketProvider } from "./useSocket.jsx";
 import { clearToken, isLoggedIn, setToken } from "./api.js";
 
 function Root() {
@@ -23,22 +24,24 @@ function Root() {
   }
 
   return (
-    <SessionProvider
-      initialLogin={loginPayload}
-      onLogout={() => {
-        clearToken();
-        setLoginPayload(null);
-        setLoggedIn(false);
-      }}
-    >
-      <App
+    <SocketProvider>
+      <SessionProvider
+        initialLogin={loginPayload}
         onLogout={() => {
           clearToken();
           setLoginPayload(null);
           setLoggedIn(false);
         }}
-      />
-    </SessionProvider>
+      >
+        <App
+          onLogout={() => {
+            clearToken();
+            setLoginPayload(null);
+            setLoggedIn(false);
+          }}
+        />
+      </SessionProvider>
+    </SocketProvider>
   );
 }
 

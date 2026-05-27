@@ -24,6 +24,7 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
           email: initialLogin.email,
           userId: initialLogin.userId,
           tenantId: initialLogin.tenantId,
+          tenantName: initialLogin.tenantName || "",
           role: initialLogin.role,
           capabilities: initialLogin.capabilities || DEFAULT_CAPS,
         }
@@ -50,6 +51,7 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
         email: data.email,
         userId: data.userId,
         tenantId: data.tenantId,
+        tenantName: data.tenantName || "",
         role: data.role,
         planId: data.planId,
         capabilities: data.capabilities || DEFAULT_CAPS,
@@ -80,6 +82,7 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
       email: loginPayload.email,
       userId: loginPayload.userId,
       tenantId: loginPayload.tenantId,
+      tenantName: loginPayload.tenantName || "",
       role: loginPayload.role,
       capabilities: loginPayload.capabilities || DEFAULT_CAPS,
     });

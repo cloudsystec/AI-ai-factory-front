@@ -148,7 +148,7 @@ export default function AdminPage({ onClose }) {
               <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
                 {tenants.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.email}
+                    {t.name || t.email}
                   </option>
                 ))}
               </select>

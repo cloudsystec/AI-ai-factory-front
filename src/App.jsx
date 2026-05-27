@@ -7,22 +7,24 @@ import {
 } from "./pipeline.js";
 import TaskDetailModal from "./TaskDetailModal.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
+import ProjectSettingsModal from "./ProjectSettingsModal.jsx";
+import ConnectGitModal from "./ConnectGitModal.jsx";
 import RunnerSidebar from "./RunnerSidebar.jsx";
 import BillingPanel from "./BillingPanel.jsx";
 import ProjectBar from "./ProjectBar.jsx";
 import ScopeDetailModal from "./ScopeDetailModal.jsx";
+import MicrosDetailModal from "./MicrosDetailModal.jsx";
 import AdminPage from "./AdminPage.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
 import { apiFetch } from "./api.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
+import { useSocket } from "./useSocket.jsx";
 
 const columns = [
   { key: "todo", title: "A fazer", icon: "📥" },
-  { key: "planning", title: "Planejamento", icon: "📋" },
   { key: "development", title: "Desenvolvimento", icon: "⚙️" },
   { key: "testing", title: "Testes / QA", icon: "🧪" },
-  { key: "review", title: "Revisão", icon: "👁️" },
   { key: "human_approval", title: "Aguardando Revisão Humana", icon: "👤" },
   { key: "done", title: "Concluído", icon: "✅" },
   { key: "blocked", title: "Bloqueado", icon: "⛔" },
@@ -70,16 +72,33 @@ function friendlyAgent(agent) {
   return AGENT_LABELS[key] || key || "—";
 }
 
+const PAUSE_STEP_TO_COLUMN = {
+  dev: "testing",
+  qa: "done",
+};
+
 /** Coluna Kanban (pode divergir de `status` quando `status` é done). */
 function getKanbanColumn(task) {
-  if (task.status === "blocked") {
+  if (task.blockReason === "infra" && task.failedStep === "finalize") {
+    return "testing";
+  }
+  if (task.status === "blocked" || task.blockReason) {
     return "blocked";
+  }
+  if (task.status === "paused") {
+    return PAUSE_STEP_TO_COLUMN[task.lastCompletedStep] || "development";
   }
   if (normalizeAgent(task.currentAgent) === "Human Approval Pending") {
     return "human_approval";
   }
   if (task.status === "done") {
     return "done";
+  }
+  if (task.status === "planning") {
+    return "development";
+  }
+  if (task.status === "review") {
+    return "testing";
   }
   return task.status;
 }
@@ -146,7 +165,7 @@ function TaskTitleButton({ task, compact, onOpenDetail }) {
   );
 }
 
-function TaskCard({ task, onOpenDetail }) {
+function TaskCard({ task, onOpenDetail, onHumanApprove, onRetry, canApprove, canExecute, pullRequest }) {
   if (isCompactDoneTask(task)) {
     return (
       <article
@@ -164,8 +183,8 @@ function TaskCard({ task, onOpenDetail }) {
     );
   }
 
-  const running = isPipelineRunning(task);
-  const blocked = task.status === "blocked";
+  const running = isPipelineRunning(task) && !task.blockReason;
+  const blocked = task.status === "blocked" || Boolean(task.blockReason);
   const backlogReady = task.backlogReady === true;
 
   return (
@@ -197,9 +216,51 @@ function TaskCard({ task, onOpenDetail }) {
         <span>{friendlyAgent(task.currentAgent)}</span>
       </div>
       {!backlogReady && <PipelineTrack task={task} dimmed={blocked} />}
+      {pullRequest?.htmlUrl && (
+        <p className="task-card__pr">
+          <a href={pullRequest.htmlUrl} target="_blank" rel="noreferrer">
+            Pull request #{pullRequest.number || ""}
+          </a>
+          {pullRequest.tlReviewStatus
+            ? ` · TL: ${pullRequest.tlReviewStatus}`
+            : ""}
+        </p>
+      )}
+      {getKanbanColumn(task) === "human_approval" && canApprove && onHumanApprove && (
+        <button
+          type="button"
+          className="toolbar-btn toolbar-btn--primary task-card__validate"
+          onClick={() => onHumanApprove(task.id)}
+        >
+          Validar
+        </button>
+      )}
       {blocked && (
-        <div className="pipeline-banner" role="status">
-          Execução interrompida — consulte o registo em Controlo.
+        <div className={`pipeline-banner${task.blockReason === "infra" ? " pipeline-banner--infra" : ""}`} role="status">
+          <span className="pipeline-banner__label">
+            {task.failedStep === "finalize"
+              ? "Erro Git / PR"
+              : friendlyAgent(task.currentAgent)}
+          </span>
+          <span className="pipeline-banner__hint">
+            {task.failedStep === "finalize"
+              ? "Código pronto — só falta enviar ao Git"
+              : ""}
+          </span>
+          {canExecute && onRetry && (
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn--primary pipeline-banner__retry"
+              onClick={() => onRetry(task)}
+            >
+              {task.failedStep === "finalize" ? "Enviar PR" : "Retry"}
+            </button>
+          )}
+        </div>
+      )}
+      {task.status === "paused" && (
+        <div className="pipeline-banner pipeline-banner--paused" role="status">
+          Pausada — será retomada ao carregar Play.
         </div>
       )}
     </article>
@@ -222,7 +283,7 @@ function isScopeStateRenderable(scope) {
   );
 }
 
-function ScopeStrip({ scope, onOpenDetail }) {
+function ScopeStrip({ scope, onOpenDetail, onMicrosClick }) {
   if (!isScopeStateRenderable(scope)) {
     return (
       <section className="scope-strip scope-strip--loading msg msg--muted">
@@ -260,7 +321,9 @@ function ScopeStrip({ scope, onOpenDetail }) {
           <p className="scope-strip__summary-line">
             {scope.macroId}
             {scope.openMicro
-              ? ` · ${scope.openMicro.title}`
+              ? ` · ${scope.openMicro.title}${
+                  scope.openMicro.wavePhase ? ` (${scope.openMicro.wavePhase})` : ""
+                }`
               : scope.wavesCompleteScenario
                 ? " · fases concluídas"
                 : ""}
@@ -280,32 +343,40 @@ function ScopeStrip({ scope, onOpenDetail }) {
       </div>
 
       <div className="scope-strip__steps scope-strip__steps--compact" role="list">
-        {scope.scopeSteps.map((step, i) => (
-          <React.Fragment key={step.key}>
-            {i > 0 && (
-              <div
-                className={
-                  scope.scopeSteps[i - 1].state === "done"
-                    ? "scope-strip__conn scope-strip__conn--done"
-                    : "scope-strip__conn"
-                }
-                aria-hidden
-              />
-            )}
+        {scope.scopeSteps.map((step, i) => {
+          const clickable = step.key === "micro" && onMicrosClick;
+          const stepEl = (
             <div
               role="listitem"
               className={`scope-strip__step scope-strip__step--${step.state}${
                 step.state === "active" ? " scope-strip__step--pulse" : ""
-              }`}
+              }${clickable ? " scope-strip__step--clickable" : ""}`}
               title={`${step.label}: ${step.state}`}
+              onClick={clickable ? onMicrosClick : undefined}
+              style={clickable ? { cursor: "pointer" } : undefined}
             >
               <div className="scope-strip__ring">
                 <span aria-hidden>{scopeStepIcon(step.state)}</span>
               </div>
               <span className="scope-strip__step-label">{step.label}</span>
             </div>
-          </React.Fragment>
-        ))}
+          );
+          return (
+            <React.Fragment key={step.key}>
+              {i > 0 && (
+                <div
+                  className={
+                    scope.scopeSteps[i - 1].state === "done"
+                      ? "scope-strip__conn scope-strip__conn--done"
+                      : "scope-strip__conn"
+                  }
+                  aria-hidden
+                />
+              )}
+              {stepEl}
+            </React.Fragment>
+          );
+        })}
       </div>
     </section>
   );
@@ -313,7 +384,8 @@ function ScopeStrip({ scope, onOpenDetail }) {
 
 export default function App({ onLogout }) {
   const caps = useCapabilities();
-  const { isPlatformAdmin } = useSession();
+  const { session, isPlatformAdmin } = useSession();
+  const { subscribe } = useSocket();
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(() => {
     try {
@@ -324,9 +396,11 @@ export default function App({ onLogout }) {
   });
   const [tasks, setTasks] = useState([]);
   const [scopeState, setScopeState] = useState(null);
-  const [dashboardPollFast, setDashboardPollFast] = useState(false);
   const [autorun, setAutorun] = useState(false);
+  const [skipHumanApproval, setSkipHumanApproval] = useState(true);
+  const [taskPullRequests, setTaskPullRequests] = useState({});
   const [developSettingsError, setDevelopSettingsError] = useState(null);
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState(null);
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -337,6 +411,8 @@ export default function App({ onLogout }) {
   const [resetError, setResetError] = useState(null);
   const [resetNotice, setResetNotice] = useState(null);
   const [showScopeDetail, setShowScopeDetail] = useState(false);
+  const [showMicrosDetail, setShowMicrosDetail] = useState(false);
+  const [showConnectGitModal, setShowConnectGitModal] = useState(false);
   const [billingSummary, setBillingSummary] = useState(null);
 
   const loadProjects = useCallback(async () => {
@@ -371,7 +447,6 @@ export default function App({ onLogout }) {
     if (!selectedProject) return;
     const q = encodeURIComponent(selectedProject);
     try {
-      let pollFast = false;
       const [tasksRes, scopeRes, settingsRes] = await Promise.all([
         apiFetch(`/api/tasks?project=${q}`),
         apiFetch(`/api/scope-state?project=${q}`),
@@ -384,7 +459,6 @@ export default function App({ onLogout }) {
           setTasks(data);
         } else if (data && Array.isArray(data.tasks)) {
           setTasks(data.tasks);
-          if (data.meta?.activeJobId) pollFast = true;
         } else {
           setTasks([]);
         }
@@ -395,17 +469,33 @@ export default function App({ onLogout }) {
       if (scopeRes.ok) {
         const scopeJson = await scopeRes.json();
         setScopeState(scopeJson);
-        if (scopeJson?.dashboardMeta?.activeJobId) pollFast = true;
       } else {
         setScopeState(null);
       }
 
-      setDashboardPollFast(pollFast);
-
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
         setAutorun(settings.autorun === true);
+        setSkipHumanApproval(settings.skipHumanApproval === true);
         setDevelopSettingsError(null);
+      }
+
+      const prRes = await apiFetch(
+        `/api/projects/${encodeURIComponent(selectedProject)}/pull-requests`
+      );
+      if (prRes.ok) {
+        const prList = await prRes.json();
+        const byTask = {};
+        for (const pr of prList) {
+          const tid = pr.taskId || pr.task_id;
+          if (!tid) continue;
+          byTask[tid] = {
+            htmlUrl: pr.htmlUrl || pr.pr_url,
+            number: pr.number ?? pr.pr_number,
+            tlReviewStatus: pr.tlReviewStatus || pr.tl_review_status,
+          };
+        }
+        setTaskPullRequests(byTask);
       }
     } catch {
       setTasks([]);
@@ -418,6 +508,8 @@ export default function App({ onLogout }) {
       setTasks([]);
       setScopeState(null);
       setAutorun(false);
+      setSkipHumanApproval(true);
+      setTaskPullRequests({});
       setDevelopSettingsError(null);
       setResetError(null);
       setResetNotice(null);
@@ -425,10 +517,10 @@ export default function App({ onLogout }) {
     }
 
     loadDashboardData();
-    const pollMs = dashboardPollFast ? 800 : 1500;
-    const interval = setInterval(loadDashboardData, pollMs);
-    return () => clearInterval(interval);
-  }, [selectedProject, loadDashboardData, dashboardPollFast]);
+    const fallback = setInterval(loadDashboardData, 30_000);
+    const unsub = subscribe("dashboard", () => loadDashboardData());
+    return () => { clearInterval(fallback); unsub(); };
+  }, [selectedProject, loadDashboardData, subscribe]);
 
   const handleResetProject = useCallback(async () => {
     if (!selectedProject || resetting) return;
@@ -466,16 +558,169 @@ export default function App({ onLogout }) {
     }
   }, [selectedProject, resetting, loadDashboardData]);
 
+  const handleDeleteProject = useCallback(async () => {
+    if (!selectedProject || resetting) return;
+    const ok = window.confirm(
+      `DELETAR o projeto "${selectedProject}" permanentemente?\n\n` +
+        "• Remove todos os dados do projeto do banco (jobs, PRs, micros, tarefas)\n" +
+        "• Executa reset do workspace antes de apagar\n\n" +
+        "Esta ação NÃO pode ser desfeita."
+    );
+    if (!ok) return;
+    setResetting(true);
+    setResetError(null);
+    setResetNotice(null);
+    try {
+      const res = await apiFetch(
+        `/api/projects/${encodeURIComponent(selectedProject)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setSelectedProject("");
+      setResetNotice(`Projeto "${selectedProject}" deletado.`);
+      await loadProjects();
+    } catch (e) {
+      setResetError(e.message || String(e));
+    } finally {
+      setResetting(false);
+    }
+  }, [selectedProject, resetting, loadProjects]);
+
   useEffect(() => {
+    if (selectedProject && projects.length > 0) {
+      const exists = projects.some((p) =>
+        (typeof p === "string" ? p : p.slug) === selectedProject
+      );
+      if (!exists) {
+        setSelectedProject("");
+        return;
+      }
+    }
     if (!selectedProject && projects.length > 0) {
-      setSelectedProject(projects[0]);
+      const first = projects[0];
+      setSelectedProject(typeof first === "string" ? first : first.slug);
     }
   }, [projects, selectedProject]);
+
+  const [githubNotice, setGithubNotice] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ghStatus = params.get("github");
+    if (!ghStatus) return;
+
+    const isPopup = window.opener !== null;
+
+    if (ghStatus === "connected") {
+      if (isPopup) {
+        window.close();
+        return;
+      }
+      setGithubNotice(null);
+      loadProjects();
+    } else if (ghStatus === "error") {
+      if (isPopup) {
+        window.close();
+        return;
+      }
+      const reason = params.get("reason");
+      setGithubNotice(
+        reason === "bad_credentials"
+          ? "GitHub: App ID ou chave privada (.pem) incorretos no servidor. Abra a GitHub App → About, copie o App ID para GITHUB_APP_ID no .env e use a private key gerada nessa mesma app. Valide com: node scripts/verify-github-app.mjs"
+          : "Falha ao ligar GitHub. Tente Conectar GitHub novamente."
+      );
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [loadProjects]);
 
   const runningCount = useMemo(
     () => tasks.filter((t) => isPipelineRunning(t)).length,
     [tasks]
   );
+
+  const selectedProjectMeta = useMemo(() => {
+    return projects.find((p) =>
+      (typeof p === "string" ? p : p.slug) === selectedProject
+    );
+  }, [projects, selectedProject]);
+
+  async function handleRetryTask(task) {
+    if (!selectedProject) return;
+    const reason = task.blockReason || null;
+    const failed = task.failedStep || null;
+    const lastStep = task.lastCompletedStep || null;
+
+    const body = {
+      project: selectedProject,
+      kind: "task",
+      taskId: task.id,
+    };
+
+    if (reason === "infra" && failed) {
+      body.retryMode = "infra";
+      body.failedStep = failed;
+      if (lastStep) body.retryFromStep = lastStep;
+    } else if (reason === "agent" || lastStep) {
+      body.retryMode = "agent";
+      if (lastStep) body.retryFromStep = lastStep;
+    }
+
+    try {
+      const res = await apiFetch("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      await loadDashboardData();
+    } catch (e) {
+      const msg = e.message || String(e);
+      setDevelopSettingsError(`Retry falhou: ${msg}`);
+      console.error("[Retry]", msg);
+    }
+  }
+
+  async function handleHumanApprove(taskId) {
+    if (!selectedProject) return;
+    try {
+      const res = await apiFetch(
+        `/api/projects/${encodeURIComponent(selectedProject)}/tasks/${encodeURIComponent(taskId)}/human-approve`,
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      await loadDashboardData();
+    } catch (e) {
+      setDevelopSettingsError(e.message || String(e));
+    }
+  }
+
+  async function handleSkipHumanChange(checked) {
+    if (!selectedProject) return;
+    const previous = skipHumanApproval;
+    setSkipHumanApproval(checked);
+    setDevelopSettingsError(null);
+    try {
+      const response = await apiFetch("/api/develop-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: selectedProject,
+          skipHumanApproval: checked,
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || response.statusText);
+      }
+      const data = await response.json();
+      setSkipHumanApproval(data.skipHumanApproval === true);
+    } catch (e) {
+      setSkipHumanApproval(previous);
+      setDevelopSettingsError(e.message || String(e));
+    }
+  }
 
   async function handleAutorunChange(checked) {
     if (!selectedProject) return;
@@ -520,9 +765,11 @@ export default function App({ onLogout }) {
       <main className="page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">AI Factory Dashboard</h1>
+          <h1 className="page-title">
+            {session?.tenantName || "AI Factory"}
+          </h1>
           <p className="page-subtitle">
-            Acompanhe o planeamento e o progresso das entregas do projeto selecionado.
+            {session?.email || "Acompanhe o planeamento e o progresso das entregas do projeto selecionado."}
           </p>
         </div>
         <div className="page-header__actions">
@@ -571,14 +818,30 @@ export default function App({ onLogout }) {
         <ProjectBar
           projects={projects}
           selectedProject={selectedProject}
+          selectedProjectMeta={selectedProjectMeta}
           onProjectChange={setSelectedProject}
           canWrite={caps.canWrite}
           onNewProject={
             caps.canWrite ? () => setShowNewProjectModal(true) : undefined
           }
+          onEditProject={
+            caps.canWrite && selectedProject
+              ? () => setShowProjectSettings(true)
+              : undefined
+          }
+          onConnectGit={
+            caps.canWrite && selectedProject
+              ? () => setShowConnectGitModal(true)
+              : undefined
+          }
           onResetProject={
             caps.canWrite && selectedProject
               ? () => handleResetProject()
+              : undefined
+          }
+          onDeleteProject={
+            caps.canWrite && selectedProject
+              ? () => handleDeleteProject()
               : undefined
           }
           resetting={resetting}
@@ -595,6 +858,10 @@ export default function App({ onLogout }) {
         <p className="msg msg--error">{resetError}</p>
       )}
 
+      {githubNotice && (
+        <p className="msg msg--error">{githubNotice}</p>
+      )}
+
       {developSettingsError && (
         <p className="msg msg--error">{developSettingsError}</p>
       )}
@@ -607,11 +874,14 @@ export default function App({ onLogout }) {
         <p className="msg msg--muted">Selecione um projeto para ver o quadro de tarefas.</p>
       )}
 
+      <div className={selectedProject ? "" : "page-disabled"}>
+
       {selectedProject &&
         (scopeState !== null ? (
           <ScopeStrip
             scope={scopeState}
             onOpenDetail={() => setShowScopeDetail(true)}
+            onMicrosClick={() => setShowMicrosDetail(true)}
           />
         ) : (
           <p className="scope-strip scope-strip--loading msg msg--muted">
@@ -642,6 +912,11 @@ export default function App({ onLogout }) {
                   key={task.id}
                   task={task}
                   onOpenDetail={setDetailTaskId}
+                  onHumanApprove={handleHumanApprove}
+                  onRetry={handleRetryTask}
+                  canApprove={caps.canWrite || caps.canExecute}
+                  canExecute={caps.canExecute}
+                  pullRequest={taskPullRequests[task.id]}
                 />
               ))}
             </section>
@@ -649,12 +924,13 @@ export default function App({ onLogout }) {
         })}
       </div>
 
+      </div>
+
       {detailTaskId && selectedProject && (
         <TaskDetailModal
           project={selectedProject}
           taskId={detailTaskId}
           runtimeSnapshot={tasks.find((t) => t.id === detailTaskId) ?? null}
-          dashboardPollFast={dashboardPollFast}
           onClose={() => setDetailTaskId(null)}
         />
       )}
@@ -662,9 +938,35 @@ export default function App({ onLogout }) {
       {showNewProjectModal && (
         <NewProjectModal
           onClose={() => setShowNewProjectModal(false)}
-          onCreated={async (slug) => {
+          onCreated={async (created) => {
+            const slug =
+              typeof created === "string"
+                ? created
+                : created?.slug || created?.project || "";
             await loadProjects();
-            setSelectedProject(slug);
+            if (slug) setSelectedProject(slug);
+          }}
+        />
+      )}
+
+      {showProjectSettings && selectedProject && (
+        <ProjectSettingsModal
+          projectSlug={selectedProject}
+          onClose={() => setShowProjectSettings(false)}
+          onSaved={async () => {
+            await loadProjects();
+            await loadDashboardData();
+          }}
+        />
+      )}
+
+      {showConnectGitModal && selectedProject && (
+        <ConnectGitModal
+          projectSlug={selectedProject}
+          onClose={() => setShowConnectGitModal(false)}
+          onConnected={async () => {
+            await loadProjects();
+            await loadDashboardData();
           }}
         />
       )}
@@ -675,20 +977,32 @@ export default function App({ onLogout }) {
           onClose={() => setShowScopeDetail(false)}
         />
       )}
+
+      {showMicrosDetail && scopeState?.micros && (
+        <MicrosDetailModal
+          micros={scopeState.micros}
+          onClose={() => setShowMicrosDetail(false)}
+        />
+      )}
       </main>
 
+      <div className={selectedProject ? "" : "page-disabled"}>
       <RunnerSidebar
         selectedProject={selectedProject}
         macroId={scopeState?.macroId}
         autorun={autorun}
+        skipHumanApproval={skipHumanApproval}
         canExecute={caps.canExecute}
         canWrite={caps.canWrite}
+        gitReady={selectedProjectMeta && typeof selectedProjectMeta === "object" && selectedProjectMeta.gitStatus === "ready"}
         onAutorunChange={handleAutorunChange}
+        onSkipHumanChange={handleSkipHumanChange}
         tasks={tasks}
         detailTaskId={detailTaskId}
         onDashboardRefresh={loadDashboardData}
         billingSummary={billingSummary}
       />
+      </div>
     </div>
   );
 }

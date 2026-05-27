@@ -50,6 +50,13 @@ export default function UsersPage({ onClose }) {
   const [tenantAdminKey, setTenantAdminKey] = useState("");
   const [showKeysPanel, setShowKeysPanel] = useState(false);
 
+  const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [newTenantEmail, setNewTenantEmail] = useState("");
+  const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantPlan, setNewTenantPlan] = useState("starter");
+  const [newAuditorEmail, setNewAuditorEmail] = useState("");
+  const [newAuditorPassword, setNewAuditorPassword] = useState("");
+
   const creatableRoles = useMemo(() => {
     if (isPlatformAdmin) {
       return ["auditor", "executor", "viewer"];
@@ -251,6 +258,36 @@ export default function UsersPage({ onClose }) {
     }
   }
 
+  async function handleCreateTenant(e) {
+    e.preventDefault();
+    clearFeedback();
+    try {
+      const res = await apiFetch("/admin/tenants", {
+        method: "POST",
+        body: JSON.stringify({
+          email: newTenantEmail,
+          name: newTenantName,
+          planId: newTenantPlan,
+          auditorEmail: newAuditorEmail,
+          auditorPassword: newAuditorPassword,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage(`Empresa "${data.tenant?.name || newTenantName}" criada com sucesso.`);
+      setShowCreateTenant(false);
+      setNewTenantEmail("");
+      setNewTenantName("");
+      setNewTenantPlan("starter");
+      setNewAuditorEmail("");
+      setNewAuditorPassword("");
+      await loadTenants();
+      if (data.tenant?.id) setTenantId(data.tenant.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (!canOpenPage) {
     return (
       <div className="users-page">
@@ -286,26 +323,107 @@ export default function UsersPage({ onClose }) {
       </header>
 
       {isPlatformAdmin && (
-        <div className="users-page__toolbar">
-          <label className="users-page__field">
-            <span className="users-page__label">Empresa (tenant)</span>
-            <select
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
+        <>
+          <div className="users-page__toolbar">
+            <label className="users-page__field">
+              <span className="users-page__label">Empresa (tenant)</span>
+              <select
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+              >
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name || t.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedTenant && (
+              <span className="users-page__meta">
+                Plano: {selectedTenant.plan_id || "—"}
+              </span>
+            )}
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn--primary"
+              onClick={() => setShowCreateTenant((v) => !v)}
             >
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.email}
-                </option>
-              ))}
-            </select>
-          </label>
-          {selectedTenant && (
-            <span className="users-page__meta">
-              Plano: {selectedTenant.plan_id || "—"}
-            </span>
+              {showCreateTenant ? "Cancelar" : "+ Nova empresa"}
+            </button>
+          </div>
+
+          {showCreateTenant && (
+            <form className="users-form-card" onSubmit={handleCreateTenant}>
+              <h3 style={{ margin: "0 0 8px" }}>Nova empresa</h3>
+              <div className="users-form-card__grid">
+                <label>
+                  Email da empresa
+                  <input
+                    type="email"
+                    value={newTenantEmail}
+                    onChange={(e) => setNewTenantEmail(e.target.value)}
+                    required
+                    placeholder="empresa@exemplo.com"
+                  />
+                </label>
+                <label>
+                  Nome da empresa
+                  <input
+                    type="text"
+                    value={newTenantName}
+                    onChange={(e) => setNewTenantName(e.target.value)}
+                    required
+                    placeholder="Acme Corp"
+                  />
+                </label>
+                <label>
+                  Plano
+                  <select
+                    value={newTenantPlan}
+                    onChange={(e) => setNewTenantPlan(e.target.value)}
+                  >
+                    <option value="starter">Starter</option>
+                    <option value="team">Team</option>
+                    <option value="scale">Scale</option>
+                    <option value="business">Business</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </label>
+              </div>
+              <h4 style={{ margin: "12px 0 4px" }}>Primeiro auditor</h4>
+              <div className="users-form-card__grid">
+                <label>
+                  Email do auditor
+                  <input
+                    type="email"
+                    value={newAuditorEmail}
+                    onChange={(e) => setNewAuditorEmail(e.target.value)}
+                    required
+                    placeholder="auditor@exemplo.com"
+                  />
+                </label>
+                <label>
+                  Senha do auditor
+                  <input
+                    type="password"
+                    value={newAuditorPassword}
+                    onChange={(e) => setNewAuditorPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="toolbar-btn toolbar-btn--primary"
+                style={{ marginTop: 8 }}
+              >
+                Criar empresa
+              </button>
+            </form>
           )}
-        </div>
+        </>
       )}
 
       {error && <p className="msg msg--error">{error}</p>}
