@@ -20,20 +20,48 @@ Rota **`/landingpage`** — página de marketing (sem login). Planos redireciona
 | Portal | `http://localhost:5173` |
 | API (back) | `http://localhost:4000` |
 
+**PowerShell (Windows):**
+
+```powershell
+Copy-Item .env.example .env   # VITE_API_URL=http://localhost:4000
+npm install
+npm run dev
+```
+
+Git Bash / WSL:
+
 ```bash
-cp .env.example .env   # VITE_API_URL=http://localhost:4000
+cp .env.example .env
 npm install
 npm run dev
 ```
 
 Certifique-se de que o [backend](../ai-factory-back/README.md) está a correr e que `CORS_ORIGIN` no back inclui `http://localhost:5173`.
 
-## Produção (em breve)
+## Docker (imagem nginx)
 
-Build Docker com o URL público do backend:
+No PowerShell, o `--build-arg` com URL deve ir entre aspas e o contexto de build é **`.`** no fim da linha (obrigatório).
+
+**PowerShell:**
+
+```powershell
+.\scripts\docker-build.ps1
+.\scripts\docker-run.ps1
+# Portal: http://localhost:8080
+```
+
+Manual (produção — substitua o URL do back):
+
+```powershell
+docker build -t ai-factory-front --build-arg "VITE_API_URL=https://your-back.railway.app" .
+docker run -d --name ai-factory-front -p 8080:80 ai-factory-front
+```
+
+Git Bash:
 
 ```bash
 docker build -t ai-factory-front --build-arg VITE_API_URL=https://your-back.railway.app .
+docker run -d --name ai-factory-front -p 8080:80 ai-factory-front
 ```
 
 Deploy previsto no **Railway** (ou CDN estático com a mesma variável de build).
