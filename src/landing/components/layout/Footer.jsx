@@ -66,9 +66,9 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10 text-xs text-gray-500">
-          <p>© 2026 AI Factory. Todos os direitos reservados.</p>
+          <p>© 2026 Cloudsys Tecnologia. Todos os direitos reservados.</p>
           <div className="flex gap-4 mt-4 md:mt-0">
-            <span className="text-gray-600" aria-hidden="true">
+            {/*<span className="text-gray-600" aria-hidden="true">
               <FontAwesomeIcon icon={faGithub} className="text-lg" />
             </span>
             <span className="text-gray-600" aria-hidden="true">
@@ -76,7 +76,7 @@ export default function Footer() {
             </span>
             <span className="text-gray-600" aria-hidden="true">
               <FontAwesomeIcon icon={faLinkedin} className="text-lg" />
-            </span>
+            </span>*/}
           </div>
         </div>
       </div>

@@ -14,7 +14,10 @@ import BillingPanel from "./BillingPanel.jsx";
 import ProjectBar from "./ProjectBar.jsx";
 import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import MicrosDetailModal from "./MicrosDetailModal.jsx";
+import MacroDetailModal from "./MacroDetailModal.jsx";
+import TasksDetailModal from "./TasksDetailModal.jsx";
 import AdminPage from "./AdminPage.jsx";
+import AdminWorkersPage from "./AdminWorkersPage.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
 import { apiFetch } from "./api.js";
@@ -283,7 +286,7 @@ function isScopeStateRenderable(scope) {
   );
 }
 
-function ScopeStrip({ scope, onOpenDetail, onMicrosClick }) {
+function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksClick }) {
   if (!isScopeStateRenderable(scope)) {
     return (
       <section className="scope-strip scope-strip--loading msg msg--muted">
@@ -344,16 +347,45 @@ function ScopeStrip({ scope, onOpenDetail, onMicrosClick }) {
 
       <div className="scope-strip__steps scope-strip__steps--compact" role="list">
         {scope.scopeSteps.map((step, i) => {
-          const clickable = step.key === "micro" && onMicrosClick;
+          const clickable =
+            (step.key === "macro" && onMacroClick) ||
+            (step.key === "micro" && onMicrosClick) ||
+            (step.key === "tasking" && onTasksClick);
+          const onStepClick =
+            step.key === "macro"
+              ? onMacroClick
+              : step.key === "micro"
+                ? onMicrosClick
+                : step.key === "tasking"
+                  ? onTasksClick
+                  : undefined;
           const stepEl = (
             <div
-              role="listitem"
+              role={clickable ? "button" : "listitem"}
+              tabIndex={clickable ? 0 : undefined}
               className={`scope-strip__step scope-strip__step--${step.state}${
                 step.state === "active" ? " scope-strip__step--pulse" : ""
               }${clickable ? " scope-strip__step--clickable" : ""}`}
-              title={`${step.label}: ${step.state}`}
-              onClick={clickable ? onMicrosClick : undefined}
-              style={clickable ? { cursor: "pointer" } : undefined}
+              title={
+                clickable
+                  ? step.key === "macro"
+                    ? "Ver ou editar escopo macro"
+                    : step.key === "micro"
+                      ? "Ver microescopos"
+                      : "Ver tasks do micro actual e dependências"
+                  : `${step.label}: ${step.state}`
+              }
+              onClick={clickable ? onStepClick : undefined}
+              onKeyDown={
+                clickable
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onStepClick?.();
+                      }
+                    }
+                  : undefined
+              }
             >
               <div className="scope-strip__ring">
                 <span aria-hidden>{scopeStepIcon(step.state)}</span>
@@ -405,6 +437,7 @@ export default function App({ onLogout }) {
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdminWorkers, setShowAdminWorkers] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -412,6 +445,8 @@ export default function App({ onLogout }) {
   const [resetNotice, setResetNotice] = useState(null);
   const [showScopeDetail, setShowScopeDetail] = useState(false);
   const [showMicrosDetail, setShowMicrosDetail] = useState(false);
+  const [showMacroDetail, setShowMacroDetail] = useState(false);
+  const [showTasksDetail, setShowTasksDetail] = useState(false);
   const [showConnectGitModal, setShowConnectGitModal] = useState(false);
   const [billingSummary, setBillingSummary] = useState(null);
 
@@ -518,7 +553,12 @@ export default function App({ onLogout }) {
 
     loadDashboardData();
     const fallback = setInterval(loadDashboardData, 30_000);
-    const unsub = subscribe("dashboard", () => loadDashboardData());
+    const unsub = subscribe("dashboard", (ev) => {
+      loadDashboardData();
+      if (ev?.reason === "git-provision") {
+        void loadProjects();
+      }
+    });
     return () => { clearInterval(fallback); unsub(); };
   }, [selectedProject, loadDashboardData, subscribe]);
 
@@ -745,6 +785,9 @@ export default function App({ onLogout }) {
     }
   }
 
+  if (showAdminWorkers) {
+    return <AdminWorkersPage onClose={() => setShowAdminWorkers(false)} />;
+  }
   if (showAdmin) {
     return <AdminPage onClose={() => setShowAdmin(false)} />;
   }
@@ -798,13 +841,22 @@ export default function App({ onLogout }) {
             </button>
           )}
           {isPlatformAdmin && (
-            <button
-              type="button"
-              className="toolbar-btn"
-              onClick={() => setShowAdmin(true)}
-            >
-              Admin plataforma
-            </button>
+            <>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => setShowAdminWorkers(true)}
+              >
+                Bots
+              </button>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => setShowAdmin(true)}
+              >
+                Admin plataforma
+              </button>
+            </>
           )}
           {onLogout && (
             <button type="button" className="toolbar-btn" onClick={onLogout}>
@@ -881,7 +933,12 @@ export default function App({ onLogout }) {
           <ScopeStrip
             scope={scopeState}
             onOpenDetail={() => setShowScopeDetail(true)}
+            onMacroClick={() => setShowMacroDetail(true)}
             onMicrosClick={() => setShowMicrosDetail(true)}
+            onTasksClick={async () => {
+              await loadDashboardData();
+              setShowTasksDetail(true);
+            }}
           />
         ) : (
           <p className="scope-strip scope-strip--loading msg msg--muted">
@@ -978,10 +1035,31 @@ export default function App({ onLogout }) {
         />
       )}
 
-      {showMicrosDetail && scopeState?.micros && (
+      {showMacroDetail && selectedProject && (
+        <MacroDetailModal
+          projectSlug={selectedProject}
+          macroId={scopeState?.macroId}
+          initialScopeMd={scopeState?.macroScopeMd ?? ""}
+          microCount={scopeState?.microCount ?? 0}
+          macroEditable={scopeState?.macroEditable}
+          canWrite={caps.canWrite}
+          onClose={() => setShowMacroDetail(false)}
+          onSaved={loadDashboardData}
+        />
+      )}
+
+      {showMicrosDetail && scopeState && (
         <MicrosDetailModal
-          micros={scopeState.micros}
+          micros={scopeState.micros ?? []}
           onClose={() => setShowMicrosDetail(false)}
+        />
+      )}
+
+      {showTasksDetail && scopeState && (
+        <TasksDetailModal
+          openMicro={scopeState.openMicro}
+          detail={scopeState.openMicroTasksDetail}
+          onClose={() => setShowTasksDetail(false)}
         />
       )}
       </main>

@@ -45,10 +45,6 @@ export default function UsersPage({ onClose }) {
   const [editUser, setEditUser] = useState(null);
   const [editRole, setEditRole] = useState("executor");
   const [editPassword, setEditPassword] = useState("");
-  const [editCursorKey, setEditCursorKey] = useState("");
-
-  const [tenantAdminKey, setTenantAdminKey] = useState("");
-  const [showKeysPanel, setShowKeysPanel] = useState(false);
 
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [newTenantEmail, setNewTenantEmail] = useState("");
@@ -149,14 +145,12 @@ export default function UsersPage({ onClose }) {
     setEditUser(user);
     setEditRole(user.role);
     setEditPassword("");
-    setEditCursorKey("");
     clearFeedback();
   }
 
   function closeEdit() {
     setEditUser(null);
     setEditPassword("");
-    setEditCursorKey("");
   }
 
   function canEditUser(user) {
@@ -198,22 +192,6 @@ export default function UsersPage({ onClose }) {
         if (!res.ok) throw new Error(data.error || res.statusText);
       }
 
-      if (
-        isPlatformAdmin &&
-        editUser.role === "executor" &&
-        editCursorKey.trim()
-      ) {
-        const res = await apiFetch(
-          `/admin/tenants/${tenantId}/users/${editUser.id}/cursor-api-key`,
-          {
-            method: "PUT",
-            body: JSON.stringify({ cursorApiKey: editCursorKey.trim() }),
-          }
-        );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText);
-      }
-
       setMessage("Alterações guardadas.");
       closeEdit();
       await loadUsers();
@@ -233,26 +211,6 @@ export default function UsersPage({ onClose }) {
       setMessage("Utilizador removido.");
       if (editUser?.id === user.id) closeEdit();
       await loadUsers();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleSaveTenantAdminKey(e) {
-    e.preventDefault();
-    if (!tenantAdminKey.trim() || !isPlatformAdmin) return;
-    clearFeedback();
-    try {
-      const res = await apiFetch(
-        `/admin/tenants/${tenantId}/cursor-admin-key`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ cursorAdminApiKey: tenantAdminKey.trim() }),
-        }
-      );
-      if (!res.ok) throw new Error(await res.text());
-      setMessage("ADMIN key do tenant gravada.");
-      setTenantAdminKey("");
     } catch (err) {
       setError(err.message);
     }
@@ -524,17 +482,6 @@ export default function UsersPage({ onClose }) {
                         >
                           Senha {u.hasPassword ? "ok" : "pendente"}
                         </span>
-                        {u.role === "executor" && (
-                          <span
-                            className={
-                              u.hasCursorKey
-                                ? "users-status users-status--ok"
-                                : "users-status users-status--warn"
-                            }
-                          >
-                            Key {u.hasCursorKey ? "ok" : "pendente"}
-                          </span>
-                        )}
                       </td>
                       <td className="users-table__actions">
                         {canEditUser(u) && (
@@ -564,39 +511,6 @@ export default function UsersPage({ onClose }) {
           )}
         </section>
 
-        {isPlatformAdmin && (
-          <section className="users-panel users-panel--keys">
-            <button
-              type="button"
-              className="users-panel__toggle"
-              onClick={() => setShowKeysPanel((v) => !v)}
-            >
-              Chaves Cursor (tenant) {showKeysPanel ? "▾" : "▸"}
-            </button>
-            {showKeysPanel && (
-              <form
-                className="users-form-card"
-                onSubmit={handleSaveTenantAdminKey}
-              >
-                <p className="msg msg--muted">
-                  ADMIN key para billing. Não é mostrada após gravar.
-                </p>
-                <label>
-                  Nova ADMIN key
-                  <input
-                    type="password"
-                    value={tenantAdminKey}
-                    onChange={(e) => setTenantAdminKey(e.target.value)}
-                    autoComplete="off"
-                  />
-                </label>
-                <button type="submit" className="toolbar-btn">
-                  Gravar ADMIN key
-                </button>
-              </form>
-            )}
-          </section>
-        )}
       </div>
 
       {editUser && (
@@ -656,23 +570,6 @@ export default function UsersPage({ onClose }) {
                     minLength={6}
                     autoComplete="new-password"
                     placeholder="Deixe vazio para não alterar"
-                  />
-                </label>
-              )}
-
-              {isPlatformAdmin && editRole === "executor" && (
-                <label>
-                  API key Cursor (executor)
-                  <input
-                    type="password"
-                    value={editCursorKey}
-                    onChange={(e) => setEditCursorKey(e.target.value)}
-                    autoComplete="off"
-                    placeholder={
-                      editUser.hasCursorKey
-                        ? "Nova key (substitui a anterior)"
-                        : "Obrigatória para executar jobs"
-                    }
                   />
                 </label>
               )}

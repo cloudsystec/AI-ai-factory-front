@@ -17,6 +17,7 @@ function jobFromApi(apiJob) {
     startedAt: apiJob.startedAt,
     finishedAt: apiJob.finishedAt ?? null,
     exitCode: apiJob.exitCode ?? null,
+    workerSlot: apiJob.workerSlot ?? null,
   };
 }
 
@@ -269,14 +270,52 @@ export function useJobRunner(selectedProject, options = {}) {
       async (jobId) => {
         if (!jobId) return;
         setError(null);
+        setLogText("");
+        jobIdRef.current = jobId;
         try {
           const fresh = await fetchJobDetail(jobId);
-          if (!fresh) { setError("Job não encontrado"); return; }
+          if (!fresh) {
+            jobIdRef.current = null;
+            setError("Job não encontrado");
+            return;
+          }
           setJobSync(jobFromApi(fresh));
           await fetchJobLog(fresh.id);
-        } catch (e) { setError(e.message || String(e)); }
+        } catch (e) {
+          setError(e.message || String(e));
+        }
       },
       [fetchJobDetail, setJobSync, fetchJobLog]
+    ),
+    selectSlot: useCallback(
+      async (workerSlot) => {
+        if (!selectedProject || !workerSlot) return;
+        setError(null);
+        setLogText("");
+        jobIdRef.current = null;
+        jobStatusRef.current = null;
+        try {
+          const res = await apiFetch(
+            `/api/jobs/by-slot?project=${encodeURIComponent(selectedProject)}&slot=${workerSlot}`
+          );
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.error || res.statusText);
+          }
+          if (!data.job) {
+            setJobSync(null);
+            return;
+          }
+          const mapped = jobFromApi(data.job);
+          jobIdRef.current = mapped.id;
+          jobStatusRef.current = mapped.status ?? null;
+          setJobSync(mapped);
+          await fetchJobLog(mapped.id);
+        } catch (e) {
+          setError(e.message || String(e));
+        }
+      },
+      [selectedProject, setJobSync, fetchJobLog]
     ),
     sendInput: async () => {},
     cancelJob,

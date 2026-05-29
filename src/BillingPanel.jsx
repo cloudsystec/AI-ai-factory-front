@@ -29,8 +29,22 @@ export default function BillingPanel({ compact = false, onSummary }) {
   useEffect(() => {
     load();
     const fallback = setInterval(load, 60_000);
-    const unsub = subscribe("billing", () => load());
-    return () => { clearInterval(fallback); unsub(); };
+    let debounceTimer = null;
+    const scheduleLoad = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => load(), 250);
+    };
+    const unsubs = [
+      subscribe("billing", scheduleLoad),
+      subscribe("job:status", scheduleLoad),
+      subscribe("execution", scheduleLoad),
+      subscribe("workers", scheduleLoad),
+    ];
+    return () => {
+      clearInterval(fallback);
+      clearTimeout(debounceTimer);
+      unsubs.forEach((fn) => fn());
+    };
   }, [load, subscribe]);
 
   if (error) {

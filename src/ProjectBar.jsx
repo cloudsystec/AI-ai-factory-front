@@ -17,6 +17,19 @@ function projectLabel(p) {
   return `${p.name || p.slug}${branch}${git}`;
 }
 
+function githubRepoUrl(repoFullName) {
+  const repo = String(repoFullName || "").trim();
+  if (!repo || !repo.includes("/")) return null;
+  return `https://github.com/${repo}`;
+}
+
+function githubBranchUrl(repoFullName, branch) {
+  const base = githubRepoUrl(repoFullName);
+  const name = String(branch || "").trim();
+  if (!base || !name) return null;
+  return `${base}/tree/${encodeURIComponent(name)}`;
+}
+
 /**
  * @param {{
  *   projects: (string|object)[],
@@ -48,6 +61,12 @@ export default function ProjectBar({
   runningCount = 0,
 }) {
   const gitConnected = selectedProjectMeta && selectedProjectMeta.repoFullName;
+  const repo = gitConnected ? selectedProjectMeta.repoFullName : "";
+  const defaultBr = selectedProjectMeta?.defaultBranch || "main";
+  const tlBr = selectedProjectMeta?.techLeadBranch || "tech-lead";
+  const repoUrl = githubRepoUrl(repo);
+  const defaultUrl = githubBranchUrl(repo, defaultBr);
+  const tlUrl = githubBranchUrl(repo, tlBr);
 
   return (
     <section className="project-bar" aria-label="Projeto">
@@ -138,9 +157,51 @@ export default function ProjectBar({
       {selectedProject && gitConnected && (
         <p className="project-bar__git-info">
           <span className="project-bar__git-badge">Git</span>
-          {selectedProjectMeta.repoFullName} · default: {selectedProjectMeta.defaultBranch || "main"} · tech-lead: {selectedProjectMeta.techLeadBranch || "tech-lead"}
+          {repoUrl ? (
+            <a
+              href={repoUrl}
+              className="project-bar__git-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {repo}
+            </a>
+          ) : (
+            repo
+          )}
+          {" · default: "}
+          {defaultUrl ? (
+            <a
+              href={defaultUrl}
+              className="project-bar__git-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {defaultBr}
+            </a>
+          ) : (
+            defaultBr
+          )}
+          {" · tech-lead: "}
+          {tlUrl ? (
+            <a
+              href={tlUrl}
+              className="project-bar__git-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {tlBr}
+            </a>
+          ) : (
+            tlBr
+          )}
           {selectedProjectMeta.gitStatus && selectedProjectMeta.gitStatus !== "ready" && (
-            <span className="project-bar__git-status"> · {selectedProjectMeta.gitStatus}</span>
+            <span className="project-bar__git-status" title="O CLI provisiona o workspace automaticamente; Play fica disponível quando estiver ready">
+              {" "}
+              · Git: {selectedProjectMeta.gitStatus === "provisioning"
+                ? "a provisionar…"
+                : selectedProjectMeta.gitStatus}
+            </span>
           )}
         </p>
       )}
