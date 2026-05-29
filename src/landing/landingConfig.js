@@ -1,4 +1,6 @@
-/** URLs de teste (Stripe Payment Links) — só usadas em `npm run dev` se a env não estiver definida. */
+import { runtimeSalesEmail, runtimeStripeCheckoutUrl } from "./runtimeConfig.js";
+
+/** URLs de teste — só em `npm run dev` se nem runtime nem VITE_* estiverem definidos. */
 const DEV_STRIPE_CHECKOUT = {
   starter: "https://buy.stripe.com/test_aFacN4gKf3SH6ff6MW5Ne00",
   team: "https://buy.stripe.com/test_6oU14m79Fbl99rrc7g5Ne01",
@@ -10,6 +12,9 @@ const DEV_STRIPE_CHECKOUT = {
  * @param {"starter"|"team"|"scale"|"business"} plan
  */
 function stripeCheckoutUrl(plan) {
+  const fromRuntime = runtimeStripeCheckoutUrl(plan);
+  if (fromRuntime) return fromRuntime;
+
   const envKey = `VITE_STRIPE_CHECKOUT_${plan.toUpperCase()}`;
   const fromEnv = import.meta.env[envKey];
   if (typeof fromEnv === "string" && fromEnv.trim()) {
@@ -21,7 +26,7 @@ function stripeCheckoutUrl(plan) {
   return "";
 }
 
-/** Payment Links Stripe por plano — configure via VITE_STRIPE_CHECKOUT_* (.env / build). */
+/** Payment Links Stripe — runtime (Railway) > VITE_* (build) > test (só dev). */
 export const STRIPE_CHECKOUT = {
   starter: stripeCheckoutUrl("starter"),
   team: stripeCheckoutUrl("team"),
@@ -30,6 +35,7 @@ export const STRIPE_CHECKOUT = {
 };
 
 const salesEmail =
+  runtimeSalesEmail() ||
   (typeof import.meta.env.VITE_SALES_EMAIL === "string" &&
     import.meta.env.VITE_SALES_EMAIL.trim()) ||
   "daniel.espindola.l195@gmail.com";
