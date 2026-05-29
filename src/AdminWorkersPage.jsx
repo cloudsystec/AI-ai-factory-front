@@ -120,7 +120,15 @@ export default function AdminWorkersPage({ onClose }) {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      setMessage("Provisionamento do worker iniciado/concluído.");
+      if (data.result?.pendingRailway) {
+        setMessage(
+          "Provisionamento em curso no Railway (repo/variáveis). Aguarde 1–2 min e atualize."
+        );
+      } else if (data.deployment?.status === "deployed") {
+        setMessage("Worker provisionado com repo e variáveis.");
+      } else {
+        setMessage("Provisionamento do worker iniciado.");
+      }
       await loadTenants();
     } catch (e) {
       setError(e.message);
