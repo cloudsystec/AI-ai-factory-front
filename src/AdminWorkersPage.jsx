@@ -16,6 +16,7 @@ export default function AdminWorkersPage({ onClose }) {
   const [tenantAdminKey, setTenantAdminKey] = useState("");
   const [savingSlot, setSavingSlot] = useState(null);
   const [provisioningWorker, setProvisioningWorker] = useState(false);
+  const [deployingWorker, setDeployingWorker] = useState(false);
 
   const loadTenants = useCallback(async () => {
     const res = await apiFetch("/admin/tenants");
@@ -120,12 +121,12 @@ export default function AdminWorkersPage({ onClose }) {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      if (data.result?.pendingRailway) {
+      if (data.result?.configOnly || data.deployment?.status === "configured") {
         setMessage(
-          "Provisionamento em curso no Railway (repo/variáveis). Aguarde 1–2 min e atualize."
+          "Serviço configurado (repo, variáveis, volume). Use Build/Deploy quando quiser."
         );
       } else if (data.deployment?.status === "deployed") {
-        setMessage("Worker provisionado com repo e variáveis.");
+        setMessage("Worker provisionado e em deploy.");
       } else {
         setMessage("Provisionamento do worker iniciado.");
       }
@@ -138,11 +139,37 @@ export default function AdminWorkersPage({ onClose }) {
     }
   }
 
+  async function handleDeployWorker() {
+    setDeployingWorker(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await apiFetch(
+        `/admin/tenants/${tenantId}/worker/deploy`,
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      if (data.result?.buildPending) {
+        setMessage("Build Docker iniciado no Railway — aguarde o deployment.");
+      } else {
+        setMessage("Build/deploy concluído.");
+      }
+      await loadTenants();
+    } catch (e) {
+      setError(e.message);
+      await loadTenants();
+    } finally {
+      setDeployingWorker(false);
+    }
+  }
+
   function deployStatusLabel(status) {
     if (!status) return "Sem registo";
     const map = {
       pending: "Pendente",
       provisioning: "A provisionar…",
+      configured: "Config OK (sem build)",
       deployed: "Deploy OK",
       failed: "Falhou",
     };
@@ -212,11 +239,23 @@ export default function AdminWorkersPage({ onClose }) {
               <button
                 type="button"
                 className="toolbar-btn"
-                disabled={provisioningWorker}
+                disabled={provisioningWorker || deployingWorker}
                 onClick={handleProvisionWorker}
               >
                 {provisioningWorker ? "A provisionar…" : "Reprovisionar worker"}
               </button>
+              {(selectedTenant.workerDeployStatus === "configured" ||
+                selectedTenant.workerDeployStatus === "failed") && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  disabled={deployingWorker || provisioningWorker}
+                  onClick={handleDeployWorker}
+                  style={{ marginLeft: "0.5rem" }}
+                >
+                  {deployingWorker ? "A fazer build…" : "Build / Deploy"}
+                </button>
+              )}
             </section>
           )}
 
