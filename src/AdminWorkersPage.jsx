@@ -15,6 +15,7 @@ export default function AdminWorkersPage({ onClose }) {
   const [drafts, setDrafts] = useState({});
   const [tenantAdminKey, setTenantAdminKey] = useState("");
   const [savingSlot, setSavingSlot] = useState(null);
+  const [provisioningWorker, setProvisioningWorker] = useState(false);
 
   const loadTenants = useCallback(async () => {
     const res = await apiFetch("/admin/tenants");
@@ -108,6 +109,38 @@ export default function AdminWorkersPage({ onClose }) {
     }
   }
 
+  async function handleProvisionWorker() {
+    setProvisioningWorker(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await apiFetch(
+        `/admin/tenants/${tenantId}/worker/provision`,
+        { method: "POST" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage("Provisionamento do worker iniciado/concluído.");
+      await loadTenants();
+    } catch (e) {
+      setError(e.message);
+      await loadTenants();
+    } finally {
+      setProvisioningWorker(false);
+    }
+  }
+
+  function deployStatusLabel(status) {
+    if (!status) return "Sem registo";
+    const map = {
+      pending: "Pendente",
+      provisioning: "A provisionar…",
+      deployed: "Deploy OK",
+      failed: "Falhou",
+    };
+    return map[status] || status;
+  }
+
   const selectedTenant = tenants.find((t) => t.id === tenantId);
 
   return (
@@ -147,6 +180,38 @@ export default function AdminWorkersPage({ onClose }) {
         <p className="msg msg--muted">A carregar…</p>
       ) : (
         <>
+          {selectedTenant && (
+            <section className="users-panel">
+              <h2>Worker Railway</h2>
+              <p className="msg msg--muted">
+                Deploy:{" "}
+                <strong>
+                  {deployStatusLabel(selectedTenant.workerDeployStatus)}
+                </strong>
+                {selectedTenant.workerStatus ? (
+                  <>
+                    {" "}
+                    · CLI: <strong>{selectedTenant.workerStatus}</strong>
+                  </>
+                ) : null}
+                {selectedTenant.railwayServiceId ? (
+                  <> · serviço {selectedTenant.railwayServiceId}</>
+                ) : null}
+              </p>
+              {selectedTenant.workerDeployError && (
+                <p className="msg msg--error">{selectedTenant.workerDeployError}</p>
+              )}
+              <button
+                type="button"
+                className="toolbar-btn"
+                disabled={provisioningWorker}
+                onClick={handleProvisionWorker}
+              >
+                {provisioningWorker ? "A provisionar…" : "Reprovisionar worker"}
+              </button>
+            </section>
+          )}
+
           <section className="users-panel">
             <h2>
               Slots 1–{slotsMax}
