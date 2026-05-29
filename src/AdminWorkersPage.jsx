@@ -123,7 +123,7 @@ export default function AdminWorkersPage({ onClose }) {
       if (!res.ok) throw new Error(data.error || res.statusText);
       if (data.result?.configOnly || data.deployment?.status === "configured") {
         setMessage(
-          "Serviço configurado (repo, variáveis, volume). Use Build/Deploy quando quiser."
+          "Serviço configurado (repo + variáveis, sem build/volume). Build/Deploy quando quiser."
         );
       } else if (data.deployment?.status === "deployed") {
         setMessage("Worker provisionado e em deploy.");
