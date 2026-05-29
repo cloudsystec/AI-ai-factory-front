@@ -4,7 +4,11 @@ import { CUSTOM_PLAN_MAILTO, STRIPE_CHECKOUT } from "../../landingConfig.js";
 
 function selectPlan(planKey) {
   const url = STRIPE_CHECKOUT[planKey];
-  if (url) window.location.href = url;
+  if (url) {
+    window.location.href = url;
+    return;
+  }
+  console.warn(`Payment Link Stripe não configurado para o plano "${planKey}".`);
 }
 
 export default function PrecosSection() {
