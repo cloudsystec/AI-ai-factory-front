@@ -25,6 +25,7 @@ function kindLabel(kind) {
  *   activeSlots: number[],
  *   currentProject?: string|null,
  *   canControl?: boolean,
+ *   projectCompleted?: boolean,
  *   gitReady?: boolean,
  *   workersStatus?: Array<{ slot: number, botReady: boolean }>,
  *   loadingSlot?: number|null,
@@ -45,6 +46,7 @@ export default function WorkerRobots({
   activeSlots,
   currentProject = null,
   canControl = false,
+  projectCompleted = false,
   gitReady = true,
   workersStatus = [],
   loadingSlot = null,
@@ -58,10 +60,11 @@ export default function WorkerRobots({
   const max = Math.max(1, Number(slotsMax) || 1);
   const activeSet = new Set(activeSlots);
   const readyCount = workersStatus.filter((w) => w.botReady).length;
+  const effectiveControl = canControl && !projectCompleted;
   const showBulkPlay =
-    canControl && gitReady && readyCount > 0 && typeof onPlayAll === "function";
+    effectiveControl && gitReady && readyCount > 0 && typeof onPlayAll === "function";
   const showBulkPause =
-    canControl && activeSet.size > 0 && typeof onPauseAll === "function";
+    effectiveControl && activeSet.size > 0 && typeof onPauseAll === "function";
   const botReadyBySlot = new Map(
     workersStatus.map((w) => [w.slot, w.botReady === true])
   );
@@ -96,6 +99,11 @@ export default function WorkerRobots({
             configurados
           </span>
         </p>
+        {projectCompleted && (
+          <p className="worker-robots__completed-hint" role="status">
+            Projeto finalizado — bots desactivados
+          </p>
+        )}
         {(showBulkPlay || showBulkPause) && (
           <div className="worker-robots__bulk">
             {showBulkPlay && (
@@ -149,9 +157,9 @@ export default function WorkerRobots({
               );
             }
 
-            const showStop = running;
-            const showPlay = !running && canControl && gitReady;
-            const gitBlocked = canControl && !gitReady && !running;
+            const showStop = running && effectiveControl;
+            const showPlay = !running && effectiveControl && gitReady;
+            const gitBlocked = effectiveControl && !gitReady && !running;
 
             return (
               <div
@@ -168,7 +176,7 @@ export default function WorkerRobots({
                   .filter(Boolean)
                   .join(" ")}
               >
-                {canControl && (
+                {effectiveControl && (
                   <button
                     type="button"
                     className={`worker-robot__play${running ? " worker-robot__play--stop" : ""}`}

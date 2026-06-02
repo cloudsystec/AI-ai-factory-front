@@ -220,6 +220,8 @@ const KIND_SHORT = {
 
  *   canExecute?: boolean,
 
+ *   projectCompleted?: boolean,
+
  *   canWrite?: boolean,
 
  *   gitReady?: boolean,
@@ -233,6 +235,8 @@ const KIND_SHORT = {
  *   detailTaskId: string|null,
 
  *   onDashboardRefresh?: () => void | Promise<void>,
+
+ *   onProjectCompleted?: () => void | Promise<void>,
 
  *   billingSummary: object|null,
 
@@ -252,6 +256,8 @@ export default function RunnerSidebar({
 
   canExecute = false,
 
+  projectCompleted = false,
+
   canWrite = false,
 
   gitReady = false,
@@ -265,6 +271,8 @@ export default function RunnerSidebar({
   detailTaskId,
 
   onDashboardRefresh,
+
+  onProjectCompleted,
 
   billingSummary,
 
@@ -510,6 +518,15 @@ export default function RunnerSidebar({
 
         const n = Array.isArray(data.enqueued) ? data.enqueued.length : 0;
 
+        if (data.projectCompleted) {
+          setActiveSlots([]);
+          setExecError(null);
+          await loadExecutionState();
+          if (onDashboardRefresh) await onDashboardRefresh();
+          if (onProjectCompleted) await onProjectCompleted();
+          return;
+        }
+
         if (n === 0 && data.hint) {
 
           setExecError(data.hint);
@@ -547,6 +564,8 @@ export default function RunnerSidebar({
       loadExecutionState,
 
       onDashboardRefresh,
+
+      onProjectCompleted,
 
     ]
 
@@ -633,6 +652,14 @@ export default function RunnerSidebar({
       }
       setPauseAfterCurrent(false);
       const n = Array.isArray(data.enqueued) ? data.enqueued.length : 0;
+      if (data.projectCompleted) {
+        setActiveSlots([]);
+        setExecError(null);
+        await loadExecutionState();
+        if (onDashboardRefresh) await onDashboardRefresh();
+        if (onProjectCompleted) await onProjectCompleted();
+        return;
+      }
       if (n === 0 && data.hint) setExecError(data.hint);
       await loadExecutionState();
       if (onDashboardRefresh) await onDashboardRefresh();
@@ -648,6 +675,7 @@ export default function RunnerSidebar({
     macroId,
     loadExecutionState,
     onDashboardRefresh,
+    onProjectCompleted,
   ]);
 
   const handlePauseAll = useCallback(async () => {
@@ -698,7 +726,9 @@ export default function RunnerSidebar({
 
       ? `${activeSlots.length} bot(s) activo(s) neste projecto`
 
-      : "Nenhum bot activo — use ▶ em cada worker";
+      : projectCompleted
+        ? "Projeto finalizado — execução desactivada"
+        : "Nenhum bot activo — use ▶ em cada worker";
 
 
 
@@ -709,7 +739,7 @@ export default function RunnerSidebar({
       <header className="runner-sidebar__head runner-sidebar__head--compact">
         <div className="runner-sidebar__head-row">
           <h2 className="runner-sidebar__title">Execução</h2>
-          {selectedProject && (canWrite || canExecute) && (
+          {selectedProject && (canWrite || canExecute) && !projectCompleted && (
           <div className="runner-sidebar__toggles runner-sidebar__toggles--inline">
 
             {canWrite && (
@@ -790,7 +820,9 @@ export default function RunnerSidebar({
 
         currentProject={selectedProject}
 
-        canControl={canExecute}
+        canControl={canExecute && !projectCompleted}
+
+        projectCompleted={projectCompleted}
 
         gitReady={gitReady}
 

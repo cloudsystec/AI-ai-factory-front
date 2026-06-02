@@ -931,6 +931,80 @@ select:-webkit-autofill {
   margin-bottom: 16px;
 }
 
+.scope-strip--completed {
+  border-color: color-mix(in srgb, var(--ok, #2ecc71) 35%, var(--border));
+  background: color-mix(in srgb, var(--ok, #2ecc71) 6%, var(--surface));
+}
+
+.scope-strip--completed .scope-strip__eyebrow {
+  color: var(--ok, #2ecc71);
+}
+
+.worker-robots__completed-hint {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.modal-panel--completion {
+  max-width: 480px;
+}
+
+.project-completion-modal__subtitle {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.project-completion-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.project-completion-modal__stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.project-completion-modal__stats li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  background: var(--surface2);
+  text-align: center;
+}
+
+.project-completion-modal__stats strong {
+  font-size: 1.1rem;
+}
+
+.project-completion-modal__stats span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.project-completion-modal__note {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.modal-panel__footer {
+  padding: 12px 20px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
 .scope-strip__top--compact {
   display: flex;
   align-items: flex-start;

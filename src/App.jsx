@@ -17,6 +17,7 @@ import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import MicrosDetailModal from "./MicrosDetailModal.jsx";
 import MacroDetailModal from "./MacroDetailModal.jsx";
 import TasksDetailModal from "./TasksDetailModal.jsx";
+import ProjectCompletionModal from "./ProjectCompletionModal.jsx";
 import AdminPage from "./AdminPage.jsx";
 import AdminWorkersPage from "./AdminWorkersPage.jsx";
 import UsersPage from "./UsersPage.jsx";
@@ -287,7 +288,14 @@ function isScopeStateRenderable(scope) {
   );
 }
 
-function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksClick }) {
+function ScopeStrip({
+  scope,
+  onOpenDetail,
+  onMacroClick,
+  onMicrosClick,
+  onTasksClick,
+  onDevClick,
+}) {
   if (!isScopeStateRenderable(scope)) {
     return (
       <section className="scope-strip scope-strip--loading msg msg--muted">
@@ -305,12 +313,16 @@ function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksC
 
   return (
     <section
-      className="scope-strip scope-strip--compact"
+      className={`scope-strip scope-strip--compact${
+        scope.projectCompleted ? " scope-strip--completed" : ""
+      }`}
       aria-labelledby="scope-current-heading"
     >
       <div className="scope-strip__top scope-strip__top--compact">
         <div className="scope-strip__compact-main">
-          <span className="scope-strip__eyebrow">Planeamento</span>
+          <span className="scope-strip__eyebrow">
+            {scope.projectCompleted ? "Concluído" : "Planeamento"}
+          </span>
           <div className="scope-strip__title-row">
             <h2 id="scope-current-heading" className="scope-strip__current">
               {scope.current.label}
@@ -351,7 +363,8 @@ function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksC
           const clickable =
             (step.key === "macro" && onMacroClick) ||
             (step.key === "micro" && onMicrosClick) ||
-            (step.key === "tasking" && onTasksClick);
+            (step.key === "tasking" && onTasksClick) ||
+            (step.key === "dev" && scope.projectCompleted && onDevClick);
           const onStepClick =
             step.key === "macro"
               ? onMacroClick
@@ -359,7 +372,9 @@ function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksC
                 ? onMicrosClick
                 : step.key === "tasking"
                   ? onTasksClick
-                  : undefined;
+                  : step.key === "dev" && scope.projectCompleted
+                    ? onDevClick
+                    : undefined;
           const stepEl = (
             <div
               role={clickable ? "button" : "listitem"}
@@ -373,7 +388,9 @@ function ScopeStrip({ scope, onOpenDetail, onMacroClick, onMicrosClick, onTasksC
                     ? "Ver ou editar escopo macro"
                     : step.key === "micro"
                       ? "Ver microescopos"
-                      : "Ver tasks do micro actual e dependências"
+                      : step.key === "tasking"
+                        ? "Ver tasks do micro actual e dependências"
+                        : "Ver resumo de finalização do projeto"
                   : `${step.label}: ${step.state}`
               }
               onClick={clickable ? onStepClick : undefined}
@@ -448,6 +465,7 @@ export default function App({ onLogout }) {
   const [showMicrosDetail, setShowMicrosDetail] = useState(false);
   const [showMacroDetail, setShowMacroDetail] = useState(false);
   const [showTasksDetail, setShowTasksDetail] = useState(false);
+  const [showProjectCompletion, setShowProjectCompletion] = useState(false);
   const [showConnectGitModal, setShowConnectGitModal] = useState(false);
   const [billingSummary, setBillingSummary] = useState(null);
 
@@ -685,6 +703,34 @@ export default function App({ onLogout }) {
       (typeof p === "string" ? p : p.slug) === selectedProject
     );
   }, [projects, selectedProject]);
+
+  const projectCompleted = useMemo(() => {
+    if (scopeState?.projectCompleted) return true;
+    if (selectedProjectMeta && typeof selectedProjectMeta === "object") {
+      return selectedProjectMeta.status === "completed";
+    }
+    return false;
+  }, [scopeState?.projectCompleted, selectedProjectMeta]);
+
+  const canExecuteProject = caps.canExecute && !projectCompleted;
+
+  useEffect(() => {
+    if (!selectedProject || !projectCompleted) return;
+    const key = `ai-factory-completion-seen-${selectedProject}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+      localStorage.setItem(key, "1");
+    } catch {
+      /* ignore */
+    }
+    setShowProjectCompletion(true);
+  }, [selectedProject, projectCompleted]);
+
+  const handleProjectCompleted = useCallback(async () => {
+    await loadProjects();
+    await loadDashboardData();
+    setShowProjectCompletion(true);
+  }, [loadProjects, loadDashboardData]);
 
   async function handleRetryTask(task) {
     if (!selectedProject) return;
@@ -944,6 +990,7 @@ export default function App({ onLogout }) {
               await loadDashboardData();
               setShowTasksDetail(true);
             }}
+            onDevClick={() => setShowProjectCompletion(true)}
           />
         ) : (
           <p className="scope-strip scope-strip--loading msg msg--muted">
@@ -976,8 +1023,8 @@ export default function App({ onLogout }) {
                   onOpenDetail={setDetailTaskId}
                   onHumanApprove={handleHumanApprove}
                   onRetry={handleRetryTask}
-                  canApprove={caps.canWrite || caps.canExecute}
-                  canExecute={caps.canExecute}
+                  canApprove={caps.canWrite || canExecuteProject}
+                  canExecute={canExecuteProject}
                   pullRequest={taskPullRequests[task.id]}
                 />
               ))}
@@ -994,6 +1041,20 @@ export default function App({ onLogout }) {
           taskId={detailTaskId}
           runtimeSnapshot={tasks.find((t) => t.id === detailTaskId) ?? null}
           onClose={() => setDetailTaskId(null)}
+        />
+      )}
+
+      {showProjectCompletion && selectedProject && scopeState && (
+        <ProjectCompletionModal
+          projectSlug={selectedProject}
+          projectName={
+            selectedProjectMeta && typeof selectedProjectMeta === "object"
+              ? selectedProjectMeta.name
+              : selectedProject
+          }
+          scope={scopeState}
+          taskCount={tasks.filter((t) => t.status === "done").length}
+          onClose={() => setShowProjectCompletion(false)}
         />
       )}
 
@@ -1075,7 +1136,8 @@ export default function App({ onLogout }) {
         macroId={scopeState?.macroId}
         autorun={autorun}
         skipHumanApproval={skipHumanApproval}
-        canExecute={caps.canExecute}
+        canExecute={canExecuteProject}
+        projectCompleted={projectCompleted}
         canWrite={caps.canWrite}
         gitReady={selectedProjectMeta && typeof selectedProjectMeta === "object" && selectedProjectMeta.gitStatus === "ready"}
         onAutorunChange={handleAutorunChange}
@@ -1083,6 +1145,7 @@ export default function App({ onLogout }) {
         tasks={tasks}
         detailTaskId={detailTaskId}
         onDashboardRefresh={loadDashboardData}
+        onProjectCompleted={handleProjectCompleted}
         billingSummary={billingSummary}
       />
       </div>
