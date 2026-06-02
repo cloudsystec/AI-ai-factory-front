@@ -168,30 +168,32 @@ export default function WorkerRobots({
                   .filter(Boolean)
                   .join(" ")}
               >
-                <button
-                  type="button"
-                  className={`worker-robot__play${running ? " worker-robot__play--stop" : ""}`}
-                  disabled={loading || (!showPlay && !showStop)}
-                  title={
-                    running
-                      ? "Parar este bot (não pega novas tasks; job atual termina)"
-                      : gitBlocked
-                        ? "Git ainda não está pronto — o CLI provisiona o repo em background (não precisa de Play)"
-                        : "Iniciar este bot neste projecto"
-                  }
-                  aria-label={
-                    running
-                      ? `Parar worker ${slotIndex}`
-                      : `Iniciar worker ${slotIndex}`
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (running) onSlotStop(slotIndex);
-                    else onSlotStart(slotIndex);
-                  }}
-                >
-                  {loading ? "…" : running ? "⏸" : "▶"}
-                </button>
+                {canControl && (
+                  <button
+                    type="button"
+                    className={`worker-robot__play${running ? " worker-robot__play--stop" : ""}`}
+                    disabled={loading || (!showPlay && !showStop)}
+                    title={
+                      running
+                        ? "Parar este bot (não pega novas tasks; job atual termina)"
+                        : gitBlocked
+                          ? "Git ainda não está pronto — o CLI provisiona o repo em background (não precisa de Play)"
+                          : "Iniciar este bot neste projecto"
+                    }
+                    aria-label={
+                      running
+                        ? `Parar worker ${slotIndex}`
+                        : `Iniciar worker ${slotIndex}`
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (running) onSlotStop(slotIndex);
+                      else onSlotStart(slotIndex);
+                    }}
+                  >
+                    {loading ? "…" : running ? "⏸" : "▶"}
+                  </button>
+                )}
 
                 <button
                   type="button"

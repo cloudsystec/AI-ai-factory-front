@@ -11,6 +11,7 @@ import ProjectSettingsModal from "./ProjectSettingsModal.jsx";
 import ConnectGitModal from "./ConnectGitModal.jsx";
 import RunnerSidebar from "./RunnerSidebar.jsx";
 import BillingPanel from "./BillingPanel.jsx";
+import ProjectCostPanel from "./ProjectCostPanel.jsx";
 import ProjectBar from "./ProjectBar.jsx";
 import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import MicrosDetailModal from "./MicrosDetailModal.jsx";
@@ -831,7 +832,7 @@ export default function App({ onLogout }) {
               Utilizadores
             </button>
           )}
-          {caps.canWrite && (
+          {caps.canExecute && (
             <button
               type="button"
               className="toolbar-btn"
@@ -898,6 +899,10 @@ export default function App({ onLogout }) {
           }
           resetting={resetting}
           runningCount={runningCount}
+        />
+        <ProjectCostPanel
+          projectSlug={selectedProject}
+          cotation={billingSummary?.cotation}
         />
         <BillingPanel compact onSummary={setBillingSummary} />
       </div>

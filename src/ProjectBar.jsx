@@ -154,56 +154,85 @@ export default function ProjectBar({
         })}
       </select>
 
-      {selectedProject && gitConnected && (
-        <p className="project-bar__git-info">
-          <span className="project-bar__git-badge">Git</span>
-          {repoUrl ? (
-            <a
-              href={repoUrl}
-              className="project-bar__git-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {repo}
-            </a>
+      {selectedProject && (
+        <div className="project-bar__body">
+          <p className="project-bar__name">
+            {typeof selectedProjectMeta === "object" && selectedProjectMeta?.name
+              ? selectedProjectMeta.name
+              : selectedProject}
+          </p>
+
+          {gitConnected ? (
+            <div className="project-bar__git">
+              <div className="project-bar__git-row">
+                <span className="project-bar__git-label">Repositório</span>
+                {repoUrl ? (
+                  <a
+                    href={repoUrl}
+                    className="project-bar__git-value project-bar__git-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {repo}
+                  </a>
+                ) : (
+                  <span className="project-bar__git-value">{repo}</span>
+                )}
+              </div>
+              <div className="project-bar__git-branches">
+                <div className="project-bar__git-row">
+                  <span className="project-bar__git-label">default</span>
+                  {defaultUrl ? (
+                    <a
+                      href={defaultUrl}
+                      className="project-bar__git-value project-bar__git-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {defaultBr}
+                    </a>
+                  ) : (
+                    <span className="project-bar__git-value">{defaultBr}</span>
+                  )}
+                </div>
+                <div className="project-bar__git-row">
+                  <span className="project-bar__git-label">tech-lead</span>
+                  {tlUrl ? (
+                    <a
+                      href={tlUrl}
+                      className="project-bar__git-value project-bar__git-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {tlBr}
+                    </a>
+                  ) : (
+                    <span className="project-bar__git-value">{tlBr}</span>
+                  )}
+                </div>
+              </div>
+              {selectedProjectMeta.gitStatus &&
+                selectedProjectMeta.gitStatus !== "ready" && (
+                  <p
+                    className="project-bar__git-status-line"
+                    title="O CLI provisiona o workspace automaticamente; Play fica disponível quando estiver ready"
+                  >
+                    Estado Git:{" "}
+                    {selectedProjectMeta.gitStatus === "provisioning"
+                      ? "a provisionar…"
+                      : selectedProjectMeta.gitStatus}
+                  </p>
+                )}
+            </div>
           ) : (
-            repo
+            canWrite &&
+            onConnectGit && (
+              <p className="project-bar__git-empty msg msg--muted">
+                Sem repositório ligado.
+              </p>
+            )
           )}
-          {" · default: "}
-          {defaultUrl ? (
-            <a
-              href={defaultUrl}
-              className="project-bar__git-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {defaultBr}
-            </a>
-          ) : (
-            defaultBr
-          )}
-          {" · tech-lead: "}
-          {tlUrl ? (
-            <a
-              href={tlUrl}
-              className="project-bar__git-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {tlBr}
-            </a>
-          ) : (
-            tlBr
-          )}
-          {selectedProjectMeta.gitStatus && selectedProjectMeta.gitStatus !== "ready" && (
-            <span className="project-bar__git-status" title="O CLI provisiona o workspace automaticamente; Play fica disponível quando estiver ready">
-              {" "}
-              · Git: {selectedProjectMeta.gitStatus === "provisioning"
-                ? "a provisionar…"
-                : selectedProjectMeta.gitStatus}
-            </span>
-          )}
-        </p>
+        </div>
       )}
     </section>
   );

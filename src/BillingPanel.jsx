@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 import { useSocket } from "./useSocket.jsx";
+import { useSession } from "./SessionContext.jsx";
 import UsageEventsModal from "./UsageEventsModal.jsx";
+import { formatBrl } from "./format-brl.js";
 
 /**
  * @param {{ compact?: boolean, onSummary?: (summary: object|null) => void }} [props]
  */
 export default function BillingPanel({ compact = false, onSummary }) {
   const { subscribe } = useSocket();
+  const { isPlatformAdmin } = useSession();
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [showEventsModal, setShowEventsModal] = useState(false);
@@ -62,6 +65,8 @@ export default function BillingPanel({ compact = false, onSummary }) {
     );
   }
 
+  const cotation = Number(summary.cotation) || 5.1;
+
   return (
     <section className={`billing-panel${compact ? " billing-panel--compact" : ""}`}>
       <div className="billing-panel__head">
@@ -86,16 +91,16 @@ export default function BillingPanel({ compact = false, onSummary }) {
         </div>
         <div>
           <span className="billing-label">Saldo</span>
-          <strong>${Number(summary.balanceUsd).toFixed(2)}</strong>
+          <strong>{formatBrl(summary.balanceUsd, cotation)}</strong>
         </div>
         <div>
           <span className="billing-label">Pool</span>
-          <strong>${Number(summary.poolCreditCycleUsd).toFixed(2)}</strong>
+          <strong>{formatBrl(summary.poolCreditCycleUsd, cotation)}</strong>
         </div>
         <div>
           <span className="billing-label">Usado</span>
           <strong>
-            ${Number(summary.usedUsd).toFixed(2)} ({summary.usedPercent}%)
+            {formatBrl(summary.usedUsd, cotation)} ({summary.usedPercent}%)
           </strong>
         </div>
         {!compact && (
@@ -117,6 +122,8 @@ export default function BillingPanel({ compact = false, onSummary }) {
       {showEventsModal && summary.recentUsage?.length > 0 && (
         <UsageEventsModal
           events={summary.recentUsage}
+          cotation={cotation}
+          showUsdForAdmin={isPlatformAdmin}
           onClose={() => setShowEventsModal(false)}
         />
       )}
