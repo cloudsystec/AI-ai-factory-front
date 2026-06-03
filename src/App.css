@@ -1368,6 +1368,13 @@ select:-webkit-autofill {
   overflow: auto;
 }
 
+.macro-detail-modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .macro-detail-modal__hint {
   margin: 6px 0 0;
   font-size: 0.78rem;
@@ -1869,7 +1876,7 @@ select:-webkit-autofill {
   border: 1px solid var(--border);
   font-size: 0.82rem;
   line-height: 1.5;
-  max-height: 280px;
+  max-height: 100%;
   overflow-y: auto;
   word-break: break-word;
 }

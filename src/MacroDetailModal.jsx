@@ -167,14 +167,25 @@ export default function MacroDetailModal({
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              className="modal-panel__close"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Fechar
-            </button>
+            <div className="macro-detail-modal__header-actions">
+              {!loading && text.trim() && (
+                <button
+                  type="button"
+                  className="toolbar-btn toolbar-btn--link"
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  Preview
+                </button>
+              )}
+              <button
+                type="button"
+                className="modal-panel__close"
+                onClick={onClose}
+                disabled={saving}
+              >
+                Fechar
+              </button>
+            </div>
           </header>
 
           <form className="modal-panel__body macro-detail-modal__body" onSubmit={handleSave}>
@@ -186,14 +197,6 @@ export default function MacroDetailModal({
                   <span className="form-field__label">Conteúdo (markdown)</span>
                   {showMacroHelp && (
                     <div className="form-field__label-actions">
-                      <button
-                        type="button"
-                        className="toolbar-btn toolbar-btn--link"
-                        onClick={() => setPreviewOpen(true)}
-                        disabled={!text.trim()}
-                      >
-                        Preview
-                      </button>
                       <MacroHelpTrigger
                         onClick={() => setDrawerOpen(true)}
                         disabled={saving}
