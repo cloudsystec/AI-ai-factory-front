@@ -6,7 +6,7 @@ Serviço estático (nginx) com proxy opcional para a API.
 
 | Variável | Obrigatória | Descrição |
 |----------|:-----------:|-----------|
-| `BACKEND_PROXY_URL` | Recomendada | URL pública do serviço **ai-factory-back** (sem `/` final). Ex.: `https://ai-factory-back-production.up.railway.app`. O nginx encaminha `/api`, `/ws`, `/worker`, `/health`. |
+| `BACKEND_PROXY_URL` | Recomendada | URL do **ai-factory-back** (sem `/` final). O nginx encaminha `/api`, `/ws`, `/worker`, `/health`. **Preferir rede privada** (ver abaixo). |
 | `VITE_API_URL` | Alternativa | Se **não** usar proxy, URL completa da API (build ou runtime). O browser chama a API em cross-origin — exige `CORS_ORIGIN` correcto no back. |
 | `VITE_STRIPE_CHECKOUT_*` | Opcional | Payment Links da landing |
 | `VITE_SALES_EMAIL` | Opcional | Email vendas |
@@ -19,11 +19,22 @@ Serviço estático (nginx) com proxy opcional para a API.
    - Demais vars: `DATABASE_URL`, `JWT_SECRET`, `WORKER_SECRET`, GitHub App, etc.
 
 2. **Serviço front** (`ai-factory-front`):
-   - `BACKEND_PROXY_URL=https://<url-publica-do-back>` (Reference Variable do serviço back)
+   - **Rede privada (recomendado — menos latência):**
+     ```
+     BACKEND_PROXY_URL=http://${{ai-factory-back.RAILWAY_PRIVATE_DOMAIN}}:${{ai-factory-back.PORT}}
+     ```
+     O browser continua em HTTPS (`devforless.com.br`); só o hop **nginx → back** fica na mesh interna do Railway (`http://`, sem sair à internet).
+   - Alternativa (funciona, mais lento): `BACKEND_PROXY_URL=https://<url-publica-do-back>`
    - Domínio custom: `devforless.com.br`
    - **Não** é necessário `VITE_API_URL` no build se usar proxy (URLs relativas `/api/...`).
 
-3. Redeploy do **front** após definir `BACKEND_PROXY_URL`.
+3. Redeploy do **front** após alterar `BACKEND_PROXY_URL`.
+
+### Por que a rede privada?
+
+Com `BACKEND_PROXY_URL=https://...up.railway.app`, cada pedido do painel (API, WebSocket, SSE de logs) faz **hairpin**: nginx do front → internet pública → edge Railway → back. Isso acrescenta TLS e latência em **todas** as requisições contínuas (`/ws`, `/api/jobs/.../events`, polls de fallback a cada 30s).
+
+Com `http://<back>.railway.internal:<PORT>`, o tráfego server-to-server fica na rede interna. O utilizador **nunca** deixa de usar HTTPS no browser — só o proxy interno muda.
 
 ## Validar
 

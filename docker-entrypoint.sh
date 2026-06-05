@@ -33,7 +33,69 @@ API_URL_RUNTIME=""
 if [ -n "$BACKEND_PROXY_URL" ]; then
   BACKEND_PROXY_URL="${BACKEND_PROXY_URL%/}"
   API_URL_RUNTIME=""
-  cat > /etc/nginx/conf.d/default.conf <<EOF
+
+  PROXY_COMMON="
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;"
+
+  case "$BACKEND_PROXY_URL" in
+    http://*)
+      # Rede privada Railway: IPs internos mudam a cada deploy — re-resolver DNS a cada 1s.
+      # Ver https://docs.railway.com/networking/private-networking
+      cat > /etc/nginx/conf.d/default.conf <<EOF
+server {
+  listen 80;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  resolver [fd12::10] valid=1s ipv6=on;
+  set \$backend_upstream "${BACKEND_PROXY_URL}";
+
+  location /api/ {
+    proxy_pass \$backend_upstream\$request_uri;
+${PROXY_COMMON}
+    proxy_read_timeout 300s;
+    proxy_buffering off;
+  }
+
+  location /ws {
+    proxy_pass \$backend_upstream\$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 3600s;
+  }
+
+  location /worker/ {
+    proxy_pass \$backend_upstream\$request_uri;
+${PROXY_COMMON}
+  }
+
+  location /admin/ {
+    proxy_pass \$backend_upstream\$request_uri;
+${PROXY_COMMON}
+  }
+
+  location /health {
+    proxy_pass \$backend_upstream\$request_uri;
+  }
+
+  location / {
+    try_files \$uri \$uri/ /index.html;
+  }
+}
+EOF
+      ;;
+    *)
+      # URL pública (https) — proxy estático; compatível com TLS upstream.
+      cat > /etc/nginx/conf.d/default.conf <<EOF
 server {
   listen 80;
   root /usr/share/nginx/html;
@@ -41,11 +103,7 @@ server {
 
   location /api/ {
     proxy_pass ${BACKEND_PROXY_URL}/api/;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
+${PROXY_COMMON}
     proxy_read_timeout 300s;
   }
 
@@ -63,20 +121,12 @@ server {
 
   location /worker/ {
     proxy_pass ${BACKEND_PROXY_URL}/worker/;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
+${PROXY_COMMON}
   }
 
   location /admin/ {
     proxy_pass ${BACKEND_PROXY_URL}/admin/;
-    proxy_http_version 1.1;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
+${PROXY_COMMON}
   }
 
   location /health {
@@ -88,6 +138,8 @@ server {
   }
 }
 EOF
+      ;;
+  esac
 elif [ -n "$VITE_API_URL" ]; then
   VITE_API_URL="${VITE_API_URL%/}"
   API_URL_RUNTIME="$VITE_API_URL"

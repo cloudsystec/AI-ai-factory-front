@@ -24,7 +24,7 @@ export default function FaqSection() {
             <h3 className="text-lg font-semibold mb-2">Como funciona o Pool?</h3>
             <p className="text-gray-400 text-sm">
               É um crédito mensal de execução. Você recebe alertas automáticos quando atinge 80% e 95%
-              de uso. Horas não utilizadas têm rollover de 20% para o mês seguinte.
+              de uso. Créditos não utilizadas têm rollover de 20% para o mês seguinte.
             </p>
           </div>
           <div className="glass-panel rounded-xl border border-white/10 p-6">
