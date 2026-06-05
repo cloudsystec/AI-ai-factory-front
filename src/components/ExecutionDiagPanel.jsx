@@ -18,6 +18,8 @@ import {
  *     ok?: boolean,
  *     message?: string,
  *     extra?: string,
+ *     phase?: string,
+ *     code?: string,
  *   }>,
  *   wsConnected?: boolean,
  *   activeSlots?: number[],
@@ -126,8 +128,15 @@ export default function ExecutionDiagPanel({
                   {e.message && (
                     <span className="runner-sidebar__diag-log-msg"> — {e.message}</span>
                   )}
-                  {e.extra && (
-                    <span className="runner-sidebar__diag-log-extra"> ({e.extra})</span>
+                  {(e.phase || e.code || e.extra) && (
+                    <span className="runner-sidebar__diag-log-extra">
+                      {" "}
+                      (
+                      {[e.phase && `fase ${e.phase}`, e.code, e.extra]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      )
+                    </span>
                   )}
                 </li>
               ))}

@@ -63,8 +63,101 @@ export function formatApiFailure(res, data) {
   if (data?.error) parts.push(String(data.error));
   else if (!res.ok) parts.push(res.statusText || `HTTP ${res.status}`);
   if (data?.code) parts.push(`[${data.code}]`);
-  if (data?.hint && data.hint !== data?.error) parts.push(`hint: ${data.hint}`);
+  if (data?.hint && data.hint !== data?.error) parts.push(String(data.hint));
   return parts.filter(Boolean).join(" · ") || `HTTP ${res.status}`;
+}
+
+/**
+ * Respostas de execução devolvem 200 mesmo quando nada foi enfileirado (hint no body).
+ * @param {Response} res
+ * @param {object} data
+ */
+export function summarizeExecutionResponse(res, data) {
+  const enqueued = Array.isArray(data?.enqueued) ? data.enqueued.length : null;
+  const hint = data?.hint ? String(data.hint).trim() : "";
+  const err = data?.error ? String(data.error).trim() : "";
+  const phase = data?.phase ? String(data.phase) : "";
+  const code = data?.code ? String(data.code) : "";
+  const gitStatus = data?.gitStatus ?? data?.git_status ?? null;
+  const gitLastError = data?.gitLastError ?? data?.git_last_error ?? null;
+
+  const extraParts = [];
+  if (phase) extraParts.push(`fase: ${phase}`);
+  if (code) extraParts.push(code);
+  if (gitStatus) extraParts.push(`git=${gitStatus}`);
+  if (gitLastError && gitLastError !== hint) {
+    extraParts.push(String(gitLastError));
+  }
+  if (Array.isArray(data?.enqueued) && data.enqueued.length) {
+    const kinds = data.enqueued.map((j) => j.kind || "?").join(", ");
+    extraParts.push(`jobs: ${kinds}`);
+  }
+  if (Array.isArray(data?.workerSlots) && data.workerSlots.length) {
+    extraParts.push(`slots ${data.workerSlots.join(",")}`);
+  }
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      message: formatApiFailure(res, data),
+      extra: extraParts.join(" · ") || undefined,
+      gitStatus,
+      gitLastError,
+      phase,
+      code,
+    };
+  }
+
+  if (hint && (enqueued === 0 || enqueued == null)) {
+    return {
+      ok: false,
+      message: hint,
+      extra: extraParts.filter(Boolean).join(" · ") || undefined,
+      gitStatus,
+      gitLastError,
+      phase,
+      code,
+    };
+  }
+
+  if (err && enqueued === 0) {
+    return {
+      ok: false,
+      message: err,
+      extra: extraParts.join(" · ") || undefined,
+      gitStatus,
+      gitLastError,
+      phase,
+      code,
+    };
+  }
+
+  const message =
+    enqueued != null
+      ? `${enqueued} job(s) enfileirado(s)${hint ? ` — ${hint}` : ""}`
+      : hint || "ok";
+
+  return {
+    ok: true,
+    message,
+    extra: extraParts.length ? extraParts.join(" · ") : undefined,
+    gitStatus,
+    gitLastError,
+    phase,
+    code,
+  };
+}
+
+/**
+ * @param {object} data
+ */
+export function executionGitHint(data) {
+  if (!data || typeof data !== "object") return null;
+  const hint = data.hint || data.gitLastError || data.git_last_error;
+  if (!hint) return null;
+  const enqueued = Array.isArray(data.enqueued) ? data.enqueued.length : 0;
+  if (enqueued > 0) return null;
+  return String(hint);
 }
 
 /**

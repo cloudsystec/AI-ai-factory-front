@@ -4,7 +4,10 @@ import { apiFetch } from "./api.js";
 
 import ExecutionDiagPanel from "./components/ExecutionDiagPanel.jsx";
 
-import { formatApiFailure } from "./lib/executionDiag.js";
+import {
+  executionGitHint,
+  summarizeExecutionResponse,
+} from "./lib/executionDiag.js";
 
 import { useJobRunner } from "./useJobRunner.js";
 
@@ -242,6 +245,8 @@ const KIND_SHORT = {
 
  *   onDashboardRefresh?: () => void | Promise<void>,
 
+ *   onProjectsRefresh?: () => void | Promise<void>,
+
  *   onProjectCompleted?: () => void | Promise<void>,
 
  *   billingSummary: object|null,
@@ -285,6 +290,8 @@ export default function RunnerSidebar({
   detailTaskId,
 
   onDashboardRefresh,
+
+  onProjectsRefresh,
 
   onProjectCompleted,
 
@@ -330,6 +337,30 @@ export default function RunnerSidebar({
 
   const [diagLog, setDiagLog] = useState([]);
 
+  const [liveGitMeta, setLiveGitMeta] = useState(null);
+
+  const effectiveGitMeta = useMemo(() => {
+    if (!projectMeta && !liveGitMeta) return null;
+    return { ...(projectMeta || {}), ...(liveGitMeta || {}) };
+  }, [projectMeta, liveGitMeta]);
+
+  const applyGitFromPayload = useCallback((data) => {
+    if (!data || typeof data !== "object") return;
+    if (
+      data.gitStatus == null &&
+      data.gitLastError == null &&
+      data.repoMode == null
+    ) {
+      return;
+    }
+    setLiveGitMeta((prev) => ({
+      ...(prev || {}),
+      ...(data.gitStatus != null ? { gitStatus: data.gitStatus } : {}),
+      ...(data.gitLastError != null ? { gitLastError: data.gitLastError } : {}),
+      ...(data.repoMode != null ? { repoMode: data.repoMode } : {}),
+    }));
+  }, []);
+
   const pushDiag = useCallback((entry) => {
     const row = { at: new Date(), ...entry };
     if (import.meta.env.DEV) {
@@ -345,27 +376,20 @@ export default function RunnerSidebar({
       try {
         const res = await apiFetch(path, init);
         const data = await res.json().catch(() => ({}));
-        const enqueued = Array.isArray(data.enqueued) ? data.enqueued.length : null;
-        const message = res.ok
-          ? enqueued != null
-            ? `${enqueued} job(s) enfileirado(s)`
-            : data.hint || "ok"
-          : formatApiFailure(res, data);
-        const extraParts = [];
-        if (Array.isArray(data.workerSlots) && data.workerSlots.length) {
-          extraParts.push(`slots ${data.workerSlots.join(",")}`);
-        }
-        if (data.code) extraParts.push(String(data.code));
+        const summary = summarizeExecutionResponse(res, data);
+        applyGitFromPayload(data);
         pushDiag({
           label,
           method,
           path,
           status: res.status,
-          ok: res.ok,
-          message,
-          extra: extraParts.length ? extraParts.join(" · ") : undefined,
+          ok: summary.ok,
+          message: summary.message,
+          extra: summary.extra,
+          phase: summary.phase,
+          code: summary.code,
         });
-        return { res, data };
+        return { res, data, summary };
       } catch (e) {
         pushDiag({
           label,
@@ -377,7 +401,7 @@ export default function RunnerSidebar({
         throw e;
       }
     },
-    [pushDiag]
+    [pushDiag, applyGitFromPayload]
   );
 
   const slotsMax = billingSummary?.agentSlotsMax ?? billingSummary?.slotsMax ?? 1;
@@ -445,6 +469,7 @@ export default function RunnerSidebar({
       if (!res.ok) return;
 
       applyExecutionPayload(data);
+      applyGitFromPayload(data);
 
     } catch {
 
@@ -452,7 +477,7 @@ export default function RunnerSidebar({
 
     }
 
-  }, [selectedProject, applyExecutionPayload, apiCall]);
+  }, [selectedProject, applyExecutionPayload, applyGitFromPayload, apiCall]);
 
 
 
@@ -481,6 +506,8 @@ export default function RunnerSidebar({
     setSelectedSlot(null);
 
     setDiagLog([]);
+
+    setLiveGitMeta(null);
 
   }, [selectedProject]);
 
@@ -582,7 +609,7 @@ export default function RunnerSidebar({
 
         setPauseAfterCurrent(false);
 
-        const n = Array.isArray(data.enqueued) ? data.enqueued.length : 0;
+        const gitHint = executionGitHint(data);
 
         if (data.projectCompleted) {
           setActiveSlots([]);
@@ -593,10 +620,11 @@ export default function RunnerSidebar({
           return;
         }
 
-        if (n === 0 && data.hint) {
-
-          setExecError(data.hint);
-
+        if (gitHint) {
+          setExecError(gitHint);
+          if (onProjectsRefresh) await onProjectsRefresh();
+        } else if (Array.isArray(data.enqueued) && data.enqueued.length > 0) {
+          setExecError(null);
         }
 
         await loadExecutionState();
@@ -632,6 +660,8 @@ export default function RunnerSidebar({
       loadExecutionState,
 
       onDashboardRefresh,
+
+      onProjectsRefresh,
 
       onProjectCompleted,
 
@@ -719,7 +749,7 @@ export default function RunnerSidebar({
         setActiveSlots(data.workerSlots);
       }
       setPauseAfterCurrent(false);
-      const n = Array.isArray(data.enqueued) ? data.enqueued.length : 0;
+      const gitHint = executionGitHint(data);
       if (data.projectCompleted) {
         setActiveSlots([]);
         setExecError(null);
@@ -728,7 +758,12 @@ export default function RunnerSidebar({
         if (onProjectCompleted) await onProjectCompleted();
         return;
       }
-      if (n === 0 && data.hint) setExecError(data.hint);
+      if (gitHint) {
+        setExecError(gitHint);
+        if (onProjectsRefresh) await onProjectsRefresh();
+      } else if (Array.isArray(data.enqueued) && data.enqueued.length > 0) {
+        setExecError(null);
+      }
       await loadExecutionState();
       if (onDashboardRefresh) await onDashboardRefresh();
     } catch (e) {
@@ -744,6 +779,7 @@ export default function RunnerSidebar({
     apiCall,
     loadExecutionState,
     onDashboardRefresh,
+    onProjectsRefresh,
     onProjectCompleted,
   ]);
 
@@ -938,7 +974,7 @@ export default function RunnerSidebar({
         )}
 
         <ExecutionDiagPanel
-          projectMeta={projectMeta}
+          projectMeta={effectiveGitMeta}
           entries={diagLog}
           wsConnected={wsConnected}
           activeSlots={activeSlots}

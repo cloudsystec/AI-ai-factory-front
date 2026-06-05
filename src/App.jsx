@@ -1186,6 +1186,7 @@ export default function App({ onLogout }) {
         tasks={tasks}
         detailTaskId={detailTaskId}
         onDashboardRefresh={loadDashboardData}
+        onProjectsRefresh={loadProjects}
         onProjectCompleted={handleProjectCompleted}
         billingSummary={billingSummary}
       />
