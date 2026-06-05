@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { downloadProjectCode } from "./lib/downloadProjectCode.js";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -41,6 +42,10 @@ export default function ProjectCompletionModal({
 
   const microCount = scope?.microCount ?? scope?.microsApproved ?? 0;
   const completedAt = scope?.projectCompletedAt;
+
+  async function handleDownload() {
+    await downloadProjectCode(projectSlug);
+  }
 
   return (
     <div
@@ -94,6 +99,13 @@ export default function ProjectCompletionModal({
         </div>
 
         <footer className="modal-panel__footer">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => handleDownload().catch((e) => alert(e.message))}
+          >
+            Baixar código (ZIP)
+          </button>
           <button type="button" className="toolbar-btn toolbar-btn--primary" onClick={onClose}>
             Fechar
           </button>

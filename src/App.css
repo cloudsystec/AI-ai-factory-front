@@ -3541,15 +3541,6 @@ select:-webkit-autofill {
   min-width: 0;
 }
 
-.project-bar__name {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--text);
-  word-break: break-word;
-}
-
 .project-bar__git {
   display: flex;
   flex-direction: column;

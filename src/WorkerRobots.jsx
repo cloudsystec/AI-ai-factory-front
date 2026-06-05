@@ -1,19 +1,6 @@
 import React from "react";
 
-const KIND_LABELS = {
-  scope: "Escopo",
-  "scope-tasks-only": "Onda",
-  develop: "Fila",
-  task: "Task",
-  provision: "Provision",
-  "tech-lead-review": "TL review",
-  "micro-integration-qa": "QA micro",
-  "micro-release": "Release",
-};
-
-function kindLabel(kind) {
-  return KIND_LABELS[kind] || kind || "Job";
-}
+import { jobKindLabel } from "./lib/projectGit.js";
 
 /**
  * @param {{
@@ -27,6 +14,8 @@ function kindLabel(kind) {
  *   canControl?: boolean,
  *   projectCompleted?: boolean,
  *   gitReady?: boolean,
+ *   workspacePreparing?: boolean,
+ *   showGitUi?: boolean,
  *   workersStatus?: Array<{ slot: number, botReady: boolean }>,
  *   loadingSlot?: number|null,
  *   onSlotStart: (slotIndex: number) => void,
@@ -48,6 +37,8 @@ export default function WorkerRobots({
   canControl = false,
   projectCompleted = false,
   gitReady = true,
+  workspacePreparing = false,
+  showGitUi = true,
   workersStatus = [],
   loadingSlot = null,
   onSlotStart,
@@ -185,7 +176,9 @@ export default function WorkerRobots({
                       running
                         ? "Parar este bot (não pega novas tasks; job atual termina)"
                         : gitBlocked
-                          ? "Git ainda não está pronto — o CLI provisiona o repo em background (não precisa de Play)"
+                          ? workspacePreparing
+                            ? "A preparar workspace…"
+                            : "Aguarde o workspace ficar pronto"
                           : "Iniciar este bot neste projecto"
                     }
                     aria-label={
@@ -208,7 +201,7 @@ export default function WorkerRobots({
                   className="worker-robot__body-btn"
                   title={
                     busy
-                      ? `${kindLabel(job.kind)} · ${job.project}${
+                      ? `${jobKindLabel(job.kind, showGitUi)} · ${job.project}${
                           job.taskId ? ` · ${job.taskId}` : ""
                         } — ver registo`
                       : running
@@ -233,7 +226,7 @@ export default function WorkerRobots({
                   <span className="worker-robot__slot">#{slotIndex}</span>
                   {busy && (
                     <span className="worker-robot__meta">
-                      {kindLabel(job.kind)}
+                      {jobKindLabel(job.kind, showGitUi)}
                     </span>
                   )}
                   {!busy && running && (

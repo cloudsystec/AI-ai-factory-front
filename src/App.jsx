@@ -23,6 +23,11 @@ import AdminWorkersPage from "./AdminWorkersPage.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
 import { apiFetch } from "./api.js";
+import {
+  isClientGitConnected,
+  isGitReadyForPlay,
+  isWorkspacePreparing,
+} from "./lib/projectGit.js";
 import { BRAND_NAME } from "./brand.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import { useSocket } from "./useSocket.jsx";
@@ -171,7 +176,16 @@ function TaskTitleButton({ task, compact, onOpenDetail }) {
   );
 }
 
-function TaskCard({ task, onOpenDetail, onHumanApprove, onRetry, canApprove, canExecute, pullRequest }) {
+function TaskCard({
+  task,
+  onOpenDetail,
+  onHumanApprove,
+  onRetry,
+  canApprove,
+  canExecute,
+  pullRequest,
+  showGitUi = true,
+}) {
   if (isCompactDoneTask(task)) {
     return (
       <article
@@ -222,7 +236,7 @@ function TaskCard({ task, onOpenDetail, onHumanApprove, onRetry, canApprove, can
         <span>{friendlyAgent(task.currentAgent)}</span>
       </div>
       {!backlogReady && <PipelineTrack task={task} dimmed={blocked} />}
-      {pullRequest?.htmlUrl && (
+      {showGitUi && pullRequest?.htmlUrl && (
         <p className="task-card__pr">
           <a href={pullRequest.htmlUrl} target="_blank" rel="noreferrer">
             Pull request #{pullRequest.number || ""}
@@ -245,12 +259,16 @@ function TaskCard({ task, onOpenDetail, onHumanApprove, onRetry, canApprove, can
         <div className={`pipeline-banner${task.blockReason === "infra" ? " pipeline-banner--infra" : ""}`} role="status">
           <span className="pipeline-banner__label">
             {task.failedStep === "finalize"
-              ? "Erro Git / PR"
+              ? showGitUi
+                ? "Erro Git / PR"
+                : "Erro ao publicar código"
               : friendlyAgent(task.currentAgent)}
           </span>
           <span className="pipeline-banner__hint">
             {task.failedStep === "finalize"
-              ? "Código pronto — só falta enviar ao Git"
+              ? showGitUi
+                ? "Código pronto — só falta enviar ao Git"
+                : "Código pronto — falha ao publicar"
               : ""}
           </span>
           {canExecute && onRetry && (
@@ -259,7 +277,11 @@ function TaskCard({ task, onOpenDetail, onHumanApprove, onRetry, canApprove, can
               className="toolbar-btn toolbar-btn--primary pipeline-banner__retry"
               onClick={() => onRetry(task)}
             >
-              {task.failedStep === "finalize" ? "Enviar PR" : "Retry"}
+              {task.failedStep === "finalize"
+                ? showGitUi
+                  ? "Enviar PR"
+                  : "Tentar novamente"
+                : "Retry"}
             </button>
           )}
         </div>
@@ -535,28 +557,36 @@ export default function App({ onLogout }) {
         setDevelopSettingsError(null);
       }
 
-      const prRes = await apiFetch(
-        `/api/projects/${encodeURIComponent(selectedProject)}/pull-requests`
+      const meta = projects.find((p) =>
+        (typeof p === "string" ? p : p.slug) === selectedProject
       );
-      if (prRes.ok) {
-        const prList = await prRes.json();
-        const byTask = {};
-        for (const pr of prList) {
-          const tid = pr.taskId || pr.task_id;
-          if (!tid) continue;
-          byTask[tid] = {
-            htmlUrl: pr.htmlUrl || pr.pr_url,
-            number: pr.number ?? pr.pr_number,
-            tlReviewStatus: pr.tlReviewStatus || pr.tl_review_status,
-          };
+      const showGitUi = isClientGitConnected(meta);
+      if (showGitUi) {
+        const prRes = await apiFetch(
+          `/api/projects/${encodeURIComponent(selectedProject)}/pull-requests`
+        );
+        if (prRes.ok) {
+          const prList = await prRes.json();
+          const byTask = {};
+          for (const pr of prList) {
+            const tid = pr.taskId || pr.task_id;
+            if (!tid) continue;
+            byTask[tid] = {
+              htmlUrl: pr.htmlUrl || pr.pr_url,
+              number: pr.number ?? pr.pr_number,
+              tlReviewStatus: pr.tlReviewStatus || pr.tl_review_status,
+            };
+          }
+          setTaskPullRequests(byTask);
         }
-        setTaskPullRequests(byTask);
+      } else {
+        setTaskPullRequests({});
       }
     } catch {
       setTasks([]);
       setScopeState(null);
     }
-  }, [selectedProject]);
+  }, [selectedProject, projects]);
 
   useEffect(() => {
     if (!selectedProject) {
@@ -575,7 +605,7 @@ export default function App({ onLogout }) {
     const fallback = setInterval(loadDashboardData, 30_000);
     const unsub = subscribe("dashboard", (ev) => {
       loadDashboardData();
-      if (ev?.reason === "git-provision") {
+      if (ev?.reason === "git-provision" || ev?.reason === "git-migrate") {
         void loadProjects();
       }
     });
@@ -946,6 +976,7 @@ export default function App({ onLogout }) {
           }
           resetting={resetting}
           runningCount={runningCount}
+          projectCompleted={projectCompleted}
         />
         <ProjectCostPanel
           projectSlug={selectedProject}
@@ -1027,6 +1058,7 @@ export default function App({ onLogout }) {
                   canApprove={caps.canWrite || canExecuteProject}
                   canExecute={canExecuteProject}
                   pullRequest={taskPullRequests[task.id]}
+                  showGitUi={isClientGitConnected(selectedProjectMeta)}
                 />
               ))}
             </section>
@@ -1087,6 +1119,11 @@ export default function App({ onLogout }) {
       {showConnectGitModal && selectedProject && (
         <ConnectGitModal
           projectSlug={selectedProject}
+          migrateMode={
+            selectedProjectMeta &&
+            typeof selectedProjectMeta === "object" &&
+            selectedProjectMeta.repoMode === "managed"
+          }
           onClose={() => setShowConnectGitModal(false)}
           onConnected={async () => {
             await loadProjects();
@@ -1140,7 +1177,9 @@ export default function App({ onLogout }) {
         canExecute={canExecuteProject}
         projectCompleted={projectCompleted}
         canWrite={caps.canWrite}
-        gitReady={selectedProjectMeta && typeof selectedProjectMeta === "object" && selectedProjectMeta.gitStatus === "ready"}
+        gitReady={isGitReadyForPlay(selectedProjectMeta)}
+        workspacePreparing={isWorkspacePreparing(selectedProjectMeta)}
+        showGitUi={isClientGitConnected(selectedProjectMeta)}
         onAutorunChange={handleAutorunChange}
         onSkipHumanChange={handleSkipHumanChange}
         tasks={tasks}

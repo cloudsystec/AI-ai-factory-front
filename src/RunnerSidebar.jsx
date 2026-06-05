@@ -262,6 +262,10 @@ export default function RunnerSidebar({
 
   gitReady = false,
 
+  workspacePreparing = false,
+
+  showGitUi = true,
+
   onAutorunChange,
 
   onSkipHumanChange,
@@ -825,6 +829,10 @@ export default function RunnerSidebar({
         projectCompleted={projectCompleted}
 
         gitReady={gitReady}
+
+        workspacePreparing={workspacePreparing}
+
+        showGitUi={showGitUi}
 
         loadingSlot={loadingSlot}
 

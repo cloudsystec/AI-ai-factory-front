@@ -4,11 +4,17 @@ import { apiFetch } from "./api.js";
 /**
  * @param {{
  *   projectSlug: string,
+ *   migrateMode?: boolean,
  *   onClose: () => void,
  *   onConnected: () => void,
  * }} props
  */
-export default function ConnectGitModal({ projectSlug, onClose, onConnected }) {
+export default function ConnectGitModal({
+  projectSlug,
+  migrateMode = false,
+  onClose,
+  onConnected,
+}) {
   const [installationId, setInstallationId] = useState(null);
   const [accountLogin, setAccountLogin] = useState(null);
   const [checking, setChecking] = useState(true);
@@ -112,7 +118,10 @@ export default function ConnectGitModal({ projectSlug, onClose, onConnected }) {
         techLeadBranch: techLeadBranch.trim() || "tech-lead",
         isPrivate: true,
       };
-      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectSlug)}/connect-git`, {
+      const endpoint = migrateMode
+        ? `/api/projects/${encodeURIComponent(projectSlug)}/migrate-git`
+        : `/api/projects/${encodeURIComponent(projectSlug)}/connect-git`;
+      const res = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -147,7 +156,9 @@ export default function ConnectGitModal({ projectSlug, onClose, onConnected }) {
       >
         <header className="modal-panel__header">
           <div>
-            <h2 className="modal-panel__title">Conectar Git</h2>
+            <h2 className="modal-panel__title">
+              {migrateMode ? "Conectar ao seu GitHub" : "Conectar Git"}
+            </h2>
             <p className="modal-panel__eyebrow">Projeto: {projectSlug}</p>
           </div>
           <button type="button" className="modal-panel__close" onClick={onClose} disabled={submitting}>

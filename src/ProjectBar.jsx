@@ -1,20 +1,30 @@
 import React from "react";
+import {
+  isClientGitConnected,
+  isWorkspacePreparing,
+  canConnectClientGit,
+} from "./lib/projectGit.js";
+import { downloadProjectCode } from "./lib/downloadProjectCode.js";
 
 /**
- * @param {string|{ slug: string, name?: string, defaultBranch?: string, gitStatus?: string, repoFullName?: string, techLeadBranch?: string }} p
+ * @param {string|object} p
  */
 function projectSlug(p) {
   return typeof p === "string" ? p : p.slug;
 }
 
+/**
+ * @param {string|object} p
+ */
 function projectLabel(p) {
   if (typeof p === "string") return p;
-  const branch = p.defaultBranch ? ` · ${p.defaultBranch}` : "";
-  const git =
-    p.gitStatus && p.gitStatus !== "ready"
-      ? ` [${p.gitStatus}]`
-      : "";
-  return `${p.name || p.slug}${branch}${git}`;
+  if (isClientGitConnected(p) && p.defaultBranch) {
+    return `${p.name || p.slug} · ${p.defaultBranch}`;
+  }
+  if (isWorkspacePreparing(p)) {
+    return `${p.name || p.slug} [a preparar…]`;
+  }
+  return p.name || p.slug;
 }
 
 function githubRepoUrl(repoFullName) {
@@ -44,6 +54,7 @@ function githubBranchUrl(repoFullName, branch) {
  *   onConnectGit?: () => void,
  *   resetting?: boolean,
  *   runningCount?: number,
+ *   projectCompleted?: boolean,
  * }} props
  */
 export default function ProjectBar({
@@ -59,14 +70,23 @@ export default function ProjectBar({
   onConnectGit,
   resetting = false,
   runningCount = 0,
+  projectCompleted = false,
 }) {
-  const gitConnected = selectedProjectMeta && selectedProjectMeta.repoFullName;
-  const repo = gitConnected ? selectedProjectMeta.repoFullName : "";
+  const showGitUi = isClientGitConnected(selectedProjectMeta);
+  const preparing = isWorkspacePreparing(selectedProjectMeta);
+  const showConnectGit =
+    canWrite && onConnectGit && canConnectClientGit(selectedProjectMeta);
+  const repo = showGitUi ? selectedProjectMeta?.repoFullName || "" : "";
   const defaultBr = selectedProjectMeta?.defaultBranch || "main";
   const tlBr = selectedProjectMeta?.techLeadBranch || "tech-lead";
   const repoUrl = githubRepoUrl(repo);
   const defaultUrl = githubBranchUrl(repo, defaultBr);
   const tlUrl = githubBranchUrl(repo, tlBr);
+
+  async function handleDownload() {
+    if (!selectedProject || !projectCompleted) return;
+    await downloadProjectCode(selectedProject);
+  }
 
   return (
     <section className="project-bar" aria-label="Projeto">
@@ -120,12 +140,12 @@ export default function ProjectBar({
                 🗑
               </button>
             )}
-            {selectedProject && !gitConnected && onConnectGit && (
+            {showConnectGit && (
               <button
                 type="button"
                 className="project-bar__icon-btn project-bar__icon-btn--git"
                 onClick={onConnectGit}
-                title="Conectar repositório Git"
+                title="Conectar GitHub"
               >
                 + Git
               </button>
@@ -154,15 +174,15 @@ export default function ProjectBar({
         })}
       </select>
 
-      {selectedProject && (
+      {selectedProject && (preparing || showGitUi || projectCompleted) && (
         <div className="project-bar__body">
-          <p className="project-bar__name">
-            {typeof selectedProjectMeta === "object" && selectedProjectMeta?.name
-              ? selectedProjectMeta.name
-              : selectedProject}
-          </p>
+          {preparing && (
+            <p className="project-bar__git-empty msg msg--muted">
+              A preparar workspace…
+            </p>
+          )}
 
-          {gitConnected ? (
+          {showGitUi && (
             <div className="project-bar__git">
               <div className="project-bar__git-row">
                 <span className="project-bar__git-label">Repositório</span>
@@ -211,26 +231,17 @@ export default function ProjectBar({
                   )}
                 </div>
               </div>
-              {selectedProjectMeta.gitStatus &&
-                selectedProjectMeta.gitStatus !== "ready" && (
-                  <p
-                    className="project-bar__git-status-line"
-                    title="O CLI provisiona o workspace automaticamente; Play fica disponível quando estiver ready"
-                  >
-                    Estado Git:{" "}
-                    {selectedProjectMeta.gitStatus === "provisioning"
-                      ? "a provisionar…"
-                      : selectedProjectMeta.gitStatus}
-                  </p>
-                )}
             </div>
-          ) : (
-            canWrite &&
-            onConnectGit && (
-              <p className="project-bar__git-empty msg msg--muted">
-                Sem repositório ligado.
-              </p>
-            )
+          )}
+
+          {projectCompleted && (
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn--primary project-bar__download"
+              onClick={() => handleDownload().catch((e) => alert(e.message))}
+            >
+              Baixar código (ZIP)
+            </button>
           )}
         </div>
       )}
