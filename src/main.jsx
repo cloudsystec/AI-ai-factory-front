@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import "./App.css";
 import App from "./App.jsx";
@@ -8,50 +8,71 @@ import { SessionProvider } from "./SessionContext.jsx";
 import { SocketProvider } from "./useSocket.jsx";
 import { clearToken, isLoggedIn, setToken } from "./api.js";
 
-function landingPath() {
-  const path = window.location.pathname.replace(/\/$/, "") || "/";
-  return path === "/landingpage";
+function normalizePath() {
+  return window.location.pathname.replace(/\/$/, "") || "/";
 }
 
-function Root() {
-  if (landingPath()) {
-    return <LandingPage />;
-  }
-  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
-  const [loginPayload, setLoginPayload] = useState(null);
+function Redirect({ to }) {
+  useLayoutEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return null;
+}
 
-  if (!loggedIn) {
-    return (
-      <LoginPage
-        onLoggedIn={(data) => {
-          setToken(data.token);
-          setLoginPayload(data);
-          setLoggedIn(true);
-        }}
-      />
-    );
+function LoginRoute() {
+  if (isLoggedIn()) {
+    return <Redirect to="/app" />;
+  }
+
+  return (
+    <LoginPage
+      onLoggedIn={(data) => {
+        setToken(data.token);
+        window.location.replace("/app");
+      }}
+    />
+  );
+}
+
+function AppRoute() {
+  if (!isLoggedIn()) {
+    return <Redirect to="/login" />;
+  }
+
+  function handleLogout() {
+    clearToken();
+    window.location.replace("/login");
   }
 
   return (
     <SocketProvider>
-      <SessionProvider
-        initialLogin={loginPayload}
-        onLogout={() => {
-          clearToken();
-          setLoginPayload(null);
-          setLoggedIn(false);
-        }}
-      >
-        <App
-          onLogout={() => {
-            clearToken();
-            setLoginPayload(null);
-            setLoggedIn(false);
-          }}
-        />
+      <SessionProvider onLogout={handleLogout}>
+        <App onLogout={handleLogout} />
       </SessionProvider>
     </SocketProvider>
   );
+}
+
+function Root() {
+  const path = normalizePath();
+
+  if (path === "/landingpage") {
+    return <Redirect to="/" />;
+  }
+
+  if (path === "/") {
+    return <LandingPage />;
+  }
+
+  if (path === "/login") {
+    return <LoginRoute />;
+  }
+
+  if (path === "/app") {
+    return <AppRoute />;
+  }
+
+  return <Redirect to="/" />;
 }
 
 createRoot(document.getElementById("root")).render(<Root />);

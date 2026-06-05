@@ -26,7 +26,7 @@ export default function Footer() {
             <div className="footer-intro mb-6">
               <BrandLogo
                 variant="lockup"
-                href="/landingpage"
+                href="/"
                 className="brand-logo-footer"
               />
               <p className="footer-intro__tagline">{BRAND_TAGLINE}</p>

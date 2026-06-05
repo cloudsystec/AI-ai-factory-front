@@ -36,7 +36,7 @@ export default function LoginPage({ onLoggedIn }) {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <a href="/landingpage" className="login-brand">
+        <a href="/" className="login-brand">
           <BrandLogo variant="symbol" className="login-brand__symbol" />
           <span className="login-brand__wordmark" aria-hidden="true">
             <span className="login-brand__dev">dev</span>
@@ -73,7 +73,7 @@ export default function LoginPage({ onLoggedIn }) {
         </button>
         <p className="login-signup">
           Não tem conta?{" "}
-          <a href="/landingpage#precos">Ver planos e começar</a>
+          <a href="/#precos">Ver planos e começar</a>
         </p>
       </form>
     </div>

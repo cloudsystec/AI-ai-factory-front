@@ -9,7 +9,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         <BrandLogo
           variant="symbol"
-          href="/landingpage"
+          href="/"
           className="brand-logo-nav"
         />
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
@@ -29,7 +29,7 @@ export default function Navigation() {
         <div className="flex items-center gap-4">
           <a
             className="hidden md:block text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            href="/"
+            href="/login"
           >
             Login
           </a>

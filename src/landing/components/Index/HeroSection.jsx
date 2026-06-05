@@ -20,7 +20,7 @@ export default function HeroSection() {
           <div className="hero-intro mb-8 md:mb-10">
             <BrandLogo
               variant="lockup"
-              href="/landingpage"
+              href="/"
               className="brand-logo-hero"
             />
             <p className="hero-intro__tagline">{BRAND_TAGLINE}</p>
