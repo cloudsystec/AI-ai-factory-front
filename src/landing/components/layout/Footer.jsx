@@ -1,6 +1,5 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMicrochip } from "@fortawesome/free-solid-svg-icons";
-import { faGithub, faTwitter, faLinkedin } from "@fortawesome/free-brands-svg-icons";
+import BrandLogo from "../../../components/BrandLogo.jsx";
+import { BRAND_TAGLINE } from "../../../brand.js";
 import { useLandingModal } from "../../LandingModalContext.jsx";
 
 function FooterLink({ modalId, children }) {
@@ -9,7 +8,7 @@ function FooterLink({ modalId, children }) {
     <li>
       <button
         type="button"
-        className="hover:text-purple-400 transition-colors text-left"
+        className="hover:text-brand transition-colors text-left"
         onClick={() => openModal(modalId)}
       >
         {children}
@@ -24,13 +23,13 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-12">
           <div className="col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <a href="/landingpage" className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                  <FontAwesomeIcon icon={faMicrochip} className="text-white text-[10px]" />
-                </div>
-                <span className="font-bold text-lg">AI Factory</span>
-              </a>
+            <div className="footer-intro mb-6">
+              <BrandLogo
+                variant="lockup"
+                href="/landingpage"
+                className="brand-logo-footer"
+              />
+              <p className="footer-intro__tagline">{BRAND_TAGLINE}</p>
             </div>
             <p className="text-sm text-gray-400 mb-6 max-w-xs">
               A plataforma líder para transformar escopo em código testável sem dor de cabeça.
@@ -42,7 +41,7 @@ export default function Footer() {
               <FooterLink modalId="produto-features">Funcionalidades</FooterLink>
               <FooterLink modalId="produto-enterprise">Enterprise</FooterLink>
               <li>
-                <a className="hover:text-purple-400 transition-colors" href="#precos">
+                <a className="hover:text-brand transition-colors" href="#precos">
                   Preços
                 </a>
               </li>
@@ -66,18 +65,8 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10 text-xs text-gray-500">
-          <p>© 2026 Cloudsys Tecnologia. Todos os direitos reservados.</p>
-          <div className="flex gap-4 mt-4 md:mt-0">
-            {/*<span className="text-gray-600" aria-hidden="true">
-              <FontAwesomeIcon icon={faGithub} className="text-lg" />
-            </span>
-            <span className="text-gray-600" aria-hidden="true">
-              <FontAwesomeIcon icon={faTwitter} className="text-lg" />
-            </span>
-            <span className="text-gray-600" aria-hidden="true">
-              <FontAwesomeIcon icon={faLinkedin} className="text-lg" />
-            </span>*/}
-          </div>
+          <p>© 2026 devforless. Todos os direitos reservados.</p>
+          <div className="flex gap-4 mt-4 md:mt-0" />
         </div>
       </div>
     </footer>

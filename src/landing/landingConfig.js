@@ -42,4 +42,4 @@ const salesEmail =
 
 export const SALES_EMAIL = salesEmail;
 
-export const CUSTOM_PLAN_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Plano Custom AI Factory")}`;
+export const CUSTOM_PLAN_MAILTO = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Plano Custom dev for less")}`;

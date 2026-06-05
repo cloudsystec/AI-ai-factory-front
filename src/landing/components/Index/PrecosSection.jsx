@@ -38,10 +38,10 @@ export default function PrecosSection() {
             </div>
             <ul className="space-y-3 text-sm text-gray-300 mb-8 flex-1">
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faRobot} className="text-purple-400" /> 1 Agente (Slot)
+                <FontAwesomeIcon icon={faRobot} className="text-brand" /> 1 Agente (Slot)
               </li>
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faUsers} className="text-blue-400" /> 5 Usuários
+                <FontAwesomeIcon icon={faUsers} className="text-teal-400" /> 5 Usuários
               </li>
               <li className="flex items-center gap-2">
                 <FontAwesomeIcon icon={faShieldHalved} className="text-gray-400" /> Controle de versão
@@ -56,7 +56,7 @@ export default function PrecosSection() {
             </button>
           </div>
           <div className="glass-panel p-6 rounded-2xl border border-white/10 flex flex-col hover:-translate-y-1 transition-transform holographic-border relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-500 to-blue-500 text-xs font-bold px-3 py-1 rounded-full text-white">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand to-teal-600 text-xs font-bold px-3 py-1 rounded-full text-white">
               Mais Popular
             </div>
             <h3 className="text-xl font-bold mb-2">Team</h3>
@@ -67,10 +67,10 @@ export default function PrecosSection() {
             </div>
             <ul className="space-y-3 text-sm text-gray-300 mb-8 flex-1">
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faRobot} className="text-purple-400" /> 2 Agentes (Slots)
+                <FontAwesomeIcon icon={faRobot} className="text-brand" /> 2 Agentes (Slots)
               </li>
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faUsers} className="text-blue-400" /> 10 Usuários
+                <FontAwesomeIcon icon={faUsers} className="text-teal-400" /> 10 Usuários
               </li>
               <li className="flex items-center gap-2">
                 <FontAwesomeIcon icon={faChartLine} className="text-green-400" /> Relatórios avançados
@@ -78,7 +78,7 @@ export default function PrecosSection() {
             </ul>
             <button
               type="button"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold shadow-[0_0_20px_rgba(0,212,170,0.4)] hover:shadow-[0_0_30px_rgba(0,212,170,0.6)] transition-all"
               onClick={() => selectPlan("team")}
             >
               Selecionar
@@ -93,10 +93,10 @@ export default function PrecosSection() {
             </div>
             <ul className="space-y-3 text-sm text-gray-300 mb-8 flex-1">
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faRobot} className="text-purple-400" /> 4 Agentes (Slots)
+                <FontAwesomeIcon icon={faRobot} className="text-brand" /> 4 Agentes (Slots)
               </li>
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faUsers} className="text-blue-400" /> 25 Usuários
+                <FontAwesomeIcon icon={faUsers} className="text-teal-400" /> 25 Usuários
               </li>
               <li className="flex items-center gap-2">
                 <FontAwesomeIcon icon={faHeadset} className="text-orange-400" /> Suporte Prioritário
@@ -119,10 +119,10 @@ export default function PrecosSection() {
             </div>
             <ul className="space-y-3 text-sm text-gray-300 mb-8 flex-1">
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faRobot} className="text-purple-400" /> 8 Agentes (Slots)
+                <FontAwesomeIcon icon={faRobot} className="text-brand" /> 8 Agentes (Slots)
               </li>
               <li className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faUsers} className="text-blue-400" /> 50 Usuários
+                <FontAwesomeIcon icon={faUsers} className="text-teal-400" /> 50 Usuários
               </li>
               <li className="flex items-center gap-2">
                 <FontAwesomeIcon icon={faShieldHalved} className="text-green-400" /> SLA Garantido
@@ -140,7 +140,7 @@ export default function PrecosSection() {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 mb-4">* Preços + impostos no checkout.</p>
           <a
-            className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-medium transition-colors"
+            className="inline-flex items-center gap-2 text-brand hover:text-teal-300 font-medium transition-colors"
             href={CUSTOM_PLAN_MAILTO}
           >
             Precisa de um plano Custom? Fale com vendas{" "}

@@ -6,8 +6,8 @@
 
 .landing-root {
   --bg-dark: #050505;
-  --primary-purple: #a855f7;
-  --primary-blue: #3b82f6;
+  --brand-accent: #00d4aa;
+  --brand-dark: #0d0d1f;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   background-color: var(--bg-dark);
   color: #ffffff;
@@ -27,7 +27,7 @@
 }
 
 .landing-root .text-glow {
-  text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+  text-shadow: 0 0 20px rgba(0, 212, 170, 0.5);
 }
 
 .landing-root .bg-glow-orb {
@@ -50,8 +50,8 @@
 }
 
 .landing-root .hover-glow:hover {
-  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
-  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 30px rgba(0, 212, 170, 0.3);
+  border-color: rgba(0, 212, 170, 0.5);
 }
 
 .landing-root .holographic-border {
@@ -63,7 +63,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: linear-gradient(45deg, #a855f7, #3b82f6, #a855f7);
+  background: linear-gradient(45deg, #00d4aa, #0d9488, #00d4aa);
   z-index: -1;
   opacity: 0.5;
   filter: blur(8px);
@@ -119,4 +119,59 @@
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0 1.5rem 1.5rem;
+}
+
+/* Marca: nav (símbolo), hero e footer (lockup + tagline em texto) */
+.landing-root .brand-logo-nav {
+  height: 3rem;
+  width: 3rem;
+  filter: drop-shadow(0 0 14px rgba(0, 212, 170, 0.35));
+}
+
+@media (min-width: 768px) {
+  .landing-root .brand-logo-nav {
+    height: 3.25rem;
+    width: 3.25rem;
+  }
+}
+
+.landing-root .brand-logo-hero {
+  height: clamp(3.75rem, 9vw, 5.25rem);
+  width: auto;
+  max-width: min(100%, 22rem);
+}
+
+.landing-root .hero-intro__tagline {
+  margin: 0.875rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  max-width: 26rem;
+}
+
+@media (min-width: 768px) {
+  .landing-root .hero-intro__tagline {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+  }
+}
+
+.landing-root .brand-logo-footer {
+  height: clamp(4.25rem, 11vw, 6rem);
+  width: auto;
+  max-width: min(100%, 26rem);
+}
+
+.landing-root .footer-intro__tagline {
+  margin: 1rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1.55;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  max-width: 28rem;
 }

@@ -1,5 +1,4 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMicrochip } from "@fortawesome/free-solid-svg-icons";
+import BrandLogo from "../../../components/BrandLogo.jsx";
 
 export default function Navigation() {
   return (
@@ -8,12 +7,11 @@ export default function Navigation() {
       id="header"
     >
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        <a href="/landingpage" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.4)]">
-            <FontAwesomeIcon icon={faMicrochip} className="text-white text-sm" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">AI Factory</span>
-        </a>
+        <BrandLogo
+          variant="symbol"
+          href="/landingpage"
+          className="brand-logo-nav"
+        />
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
           <a className="hover:text-white transition-colors" href="#solucao">
             Solução

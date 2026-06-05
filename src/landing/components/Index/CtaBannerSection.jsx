@@ -1,11 +1,11 @@
 export default function CtaBannerSection() {
   return (
     <section className="py-24 relative overflow-hidden" id="section-6">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-purple-900/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-teal-900/20 pointer-events-none" />
       <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
         <h2 className="text-4xl md:text-5xl font-bold mb-6">
           Transforme seu escopo em <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand to-teal-400">
             software testável
           </span>
         </h2>

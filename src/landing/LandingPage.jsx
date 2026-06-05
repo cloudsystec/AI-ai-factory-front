@@ -12,10 +12,10 @@ import { LandingModalProvider } from "./LandingModalContext.jsx";
 export default function LandingPage() {
   return (
     <LandingModalProvider>
-      <div className="landing-root antialiased selection:bg-purple-500/30 relative">
-        <div className="bg-glow-orb w-[600px] h-[600px] bg-purple-600/30 top-[-10%] left-[-10%]" />
-        <div className="bg-glow-orb w-[500px] h-[500px] bg-blue-600/20 top-[20%] right-[-5%]" />
-        <div className="bg-glow-orb w-[800px] h-[800px] bg-purple-900/20 bottom-[-10%] left-[20%]" />
+      <div className="landing-root antialiased selection:bg-brand/30 relative">
+        <div className="bg-glow-orb w-[600px] h-[600px] bg-brand/30 top-[-10%] left-[-10%]" />
+        <div className="bg-glow-orb w-[500px] h-[500px] bg-teal-600/20 top-[20%] right-[-5%]" />
+        <div className="bg-glow-orb w-[800px] h-[800px] bg-teal-900/20 bottom-[-10%] left-[20%]" />
         <Navigation />
         <main className="relative z-10">
           <HeroSection />

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { apiFetch } from "./api.js";
+import BrandLogo from "./components/BrandLogo.jsx";
+import { BRAND_NAME, BRAND_TAGLINE } from "./brand.js";
 
 /**
  * @param {{ onLoggedIn: (data: object) => void }} props
@@ -34,7 +36,16 @@ export default function LoginPage({ onLoggedIn }) {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <h1>AI Factory</h1>
+        <a href="/landingpage" className="login-brand">
+          <BrandLogo variant="symbol" className="login-brand__symbol" />
+          <span className="login-brand__wordmark" aria-hidden="true">
+            <span className="login-brand__dev">dev</span>
+            <span className="login-brand__for">for</span>
+            <span className="login-brand__less">less</span>
+          </span>
+          <span className="sr-only">{BRAND_NAME}</span>
+          <span className="login-brand__tagline">{BRAND_TAGLINE}</span>
+        </a>
         <p className="login-subtitle">Entre com o email e a senha da sua conta.</p>
         <label>
           Email
@@ -60,6 +71,10 @@ export default function LoginPage({ onLoggedIn }) {
         <button type="submit" disabled={loading}>
           {loading ? "A entrar…" : "Entrar"}
         </button>
+        <p className="login-signup">
+          Não tem conta?{" "}
+          <a href="/landingpage#precos">Ver planos e começar</a>
+        </p>
       </form>
     </div>
   );

@@ -22,7 +22,7 @@ export default function SolucaoSection() {
               Projetos gigantes que nunca terminam e perdem o foco no meio do caminho.
             </p>
             <div className="flex items-start gap-3">
-              <FontAwesomeIcon icon={faArrowRight} className="text-purple-400 mt-1" />
+              <FontAwesomeIcon icon={faArrowRight} className="text-brand mt-1" />
               <div>
                 <h4 className="text-white font-medium text-sm mb-1">Pipeline Macro → Micro</h4>
                 <p className="text-gray-500 text-xs">
@@ -40,7 +40,7 @@ export default function SolucaoSection() {
               Você não sabe o que está sendo feito até o dia da entrega final.
             </p>
             <div className="flex items-start gap-3">
-              <FontAwesomeIcon icon={faArrowRight} className="text-blue-400 mt-1" />
+              <FontAwesomeIcon icon={faArrowRight} className="text-teal-400 mt-1" />
               <div>
                 <h4 className="text-white font-medium text-sm mb-1">Dashboard em Tempo Real</h4>
                 <p className="text-gray-500 text-xs">

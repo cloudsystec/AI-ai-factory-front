@@ -1,3 +1,5 @@
+import BrandLogo from "../../../components/BrandLogo.jsx";
+import { BRAND_TAGLINE } from "../../../brand.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGithub as faGithubBrands } from "@fortawesome/free-brands-svg-icons";
 import {
@@ -10,18 +12,26 @@ import {
 export default function HeroSection() {
   return (
     <section
-      className="relative pt-40 pb-32 overflow-hidden min-h-[90vh] flex items-center"
+      className="relative pt-36 md:pt-40 pb-32 overflow-hidden min-h-[90vh] flex items-center"
       id="hero"
     >
       <div className="max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-16 items-center">
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-panel border border-purple-500/30 text-purple-300 text-xs font-semibold mb-8 uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+          <div className="hero-intro mb-8 md:mb-10">
+            <BrandLogo
+              variant="lockup"
+              href="/landingpage"
+              className="brand-logo-hero"
+            />
+            <p className="hero-intro__tagline">{BRAND_TAGLINE}</p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-panel border border-brand/30 text-teal-300 text-xs font-semibold mb-8 uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
             Novo Paradigma de Software
           </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6">
             Do escopo ao <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand to-teal-400 drop-shadow-[0_0_15px_rgba(0,212,170,0.5)]">
               software testável
             </span>
             <br />
@@ -35,7 +45,7 @@ export default function HeroSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <a
-              className="px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-base text-center hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
+              className="px-8 py-4 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold text-base text-center hover:shadow-[0_0_30px_rgba(0,212,170,0.4)] transition-all flex items-center justify-center gap-2"
               href="#precos"
             >
               Começar agora <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
@@ -47,7 +57,7 @@ export default function HeroSection() {
               Ver como funciona
             </a>
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-500 border-l-2 border-purple-500/30 pl-4">
+          <div className="flex items-center gap-4 text-sm text-gray-500 border-l-2 border-brand/30 pl-4">
             <p>
               Escopo <FontAwesomeIcon icon={faArrowRight} className="mx-1 text-xs text-gray-600" />{" "}
               entregas priorizadas <FontAwesomeIcon icon={faArrowRight} className="mx-1 text-xs text-gray-600" />{" "}
@@ -82,8 +92,8 @@ export default function HeroSection() {
                     Escopo Ativo
                   </div>
                   <div className="space-y-2">
-                    <div className="h-2 w-full bg-purple-500/20 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500 w-[60%]" />
+                    <div className="h-2 w-full bg-brand/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-brand w-[60%]" />
                     </div>
                     <div className="text-xs text-gray-300">Módulo de Pagamentos</div>
                   </div>
@@ -101,8 +111,8 @@ export default function HeroSection() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-sm font-semibold">Live Jobs</div>
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                      <span className="text-[10px] text-blue-400">Agente 1 ativo</span>
+                      <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                      <span className="text-[10px] text-teal-400">Agente 1 ativo</span>
                     </div>
                   </div>
                   <div className="space-y-2 flex-1">
@@ -111,7 +121,7 @@ export default function HeroSection() {
                         <FontAwesomeIcon icon={faGithubBrands} className="text-gray-400" />
                         <span className="text-xs text-gray-300">Gerando testes de integração...</span>
                       </div>
-                      <FontAwesomeIcon icon={faSpinner} className="text-purple-400 text-xs" spin />
+                      <FontAwesomeIcon icon={faSpinner} className="text-brand text-xs" spin />
                     </div>
                     <div className="p-2 rounded bg-black/40 border border-green-500/20 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -126,7 +136,7 @@ export default function HeroSection() {
                 </div>
               </div>
             </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-brand/10 to-transparent pointer-events-none" />
           </div>
         </div>
       </div>

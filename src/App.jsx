@@ -23,6 +23,7 @@ import AdminWorkersPage from "./AdminWorkersPage.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
 import { apiFetch } from "./api.js";
+import { BRAND_NAME } from "./brand.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import { useSocket } from "./useSocket.jsx";
 
@@ -856,7 +857,7 @@ export default function App({ onLogout }) {
       <header className="page-header">
         <div>
           <h1 className="page-title">
-            {session?.tenantName || "AI Factory"}
+            {session?.tenantName || BRAND_NAME}
           </h1>
           <p className="page-subtitle">
             {session?.email || "Acompanhe o planeamento e o progresso das entregas do projeto selecionado."}

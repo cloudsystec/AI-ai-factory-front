@@ -13,14 +13,14 @@ export default function ComoFuncionaSection() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">Como a AI Factory opera</h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Como o dev for less opera</h2>
             <p className="text-gray-400 text-lg mb-12">
               Um processo estruturado que transforma ideias em software auditável. Sem instalar
               ferramentas extras — tudo roda na nossa nuvem.
             </p>
-            <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-purple-500/50 before:to-transparent">
+            <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-brand/50 before:to-transparent">
               <div className="relative flex items-start gap-6">
-                <div className="w-10 h-10 rounded-full bg-gray-900 border-2 border-purple-500 flex items-center justify-center font-bold text-purple-400 z-10 shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+                <div className="w-10 h-10 rounded-full bg-gray-900 border-2 border-brand flex items-center justify-center font-bold text-brand z-10 shrink-0 shadow-[0_0_15px_rgba(0,212,170,0.4)]">
                   1
                 </div>
                 <div>
@@ -31,7 +31,7 @@ export default function ComoFuncionaSection() {
                 </div>
               </div>
               <div className="relative flex items-start gap-6">
-                <div className="w-10 h-10 rounded-full bg-gray-900 border-2 border-blue-500 flex items-center justify-center font-bold text-blue-400 z-10 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gray-900 border-2 border-teal-600 flex items-center justify-center font-bold text-teal-400 z-10 shrink-0">
                   2
                 </div>
                 <div>
@@ -68,7 +68,7 @@ export default function ComoFuncionaSection() {
           </div>
           <div className="relative">
             <div className="glass-panel p-8 rounded-2xl border border-white/10 relative z-10">
-              <h3 className="text-xl font-bold mb-6 border-b border-white/10 pb-4">Chat vs AI Factory</h3>
+              <h3 className="text-xl font-bold mb-6 border-b border-white/10 pb-4">Chat vs dev for less</h3>
               <div className="space-y-6">
                 <div>
                   <div className="flex items-center gap-2 text-red-400 font-semibold mb-2">
@@ -81,15 +81,15 @@ export default function ComoFuncionaSection() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 text-green-400 font-semibold mb-2">
-                    <FontAwesomeIcon icon={faCheck} /> AI Factory
+                    <FontAwesomeIcon icon={faCheck} /> dev for less
                   </div>
                   <div className="text-sm text-gray-300 bg-green-500/5 p-4 rounded-lg border border-green-500/20 space-y-2">
                     <div className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={faLayerGroup} className="text-purple-400 w-4" /> Processo
+                      <FontAwesomeIcon icon={faLayerGroup} className="text-brand w-4" /> Processo
                       estruturado
                     </div>
                     <div className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={faShieldHalved} className="text-blue-400 w-4" /> Auditoria e
+                      <FontAwesomeIcon icon={faShieldHalved} className="text-teal-400 w-4" /> Auditoria e
                       logs
                     </div>
                     <div className="flex items-center gap-2">
