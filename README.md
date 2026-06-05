@@ -64,7 +64,7 @@ docker build -t ai-factory-front --build-arg VITE_API_URL=https://your-back.rail
 docker run -d --name ai-factory-front -p 8080:80 ai-factory-front
 ```
 
-Deploy previsto no **Railway** (ou CDN estático com a mesma variável de build).
+Deploy previsto no **Railway** — ver [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md) (`BACKEND_PROXY_URL` + domínio custom).
 
 ## Relacionados
 

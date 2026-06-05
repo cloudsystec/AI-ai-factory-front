@@ -1,8 +1,22 @@
-const API_BASE =
-  import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
-  (import.meta.env.DEV ? "" : "http://localhost:4000");
-
 const TOKEN_KEY = "ai-factory-token";
+
+/**
+ * Ordem: runtime-config.js (Docker/Railway) → build VITE_API_URL → dev proxy → URLs relativas.
+ */
+function resolveApiBase() {
+  if (typeof window !== "undefined") {
+    const runtime = window.__RUNTIME_CONFIG__?.apiUrl;
+    if (typeof runtime === "string" && runtime.trim()) {
+      return runtime.trim().replace(/\/$/, "");
+    }
+  }
+  const built = import.meta.env.VITE_API_URL?.trim();
+  if (built) return built.replace(/\/$/, "");
+  if (import.meta.env.DEV) return "";
+  return "";
+}
+
+const API_BASE = resolveApiBase();
 
 export function getApiBase() {
   return API_BASE;
