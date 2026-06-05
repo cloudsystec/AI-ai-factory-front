@@ -2,11 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "./api.js";
 
+import ExecutionDiagPanel from "./components/ExecutionDiagPanel.jsx";
+
+import { formatApiFailure } from "./lib/executionDiag.js";
+
 import { useJobRunner } from "./useJobRunner.js";
 
 import { useSocket } from "./useSocket.jsx";
 
 import WorkerRobots from "./WorkerRobots.jsx";
+
+const MAX_DIAG_ENTRIES = 14;
 
 
 
@@ -240,6 +246,8 @@ const KIND_SHORT = {
 
  *   billingSummary: object|null,
 
+ *   projectMeta?: object|null,
+
  * }} props
 
  */
@@ -247,6 +255,8 @@ const KIND_SHORT = {
 export default function RunnerSidebar({
 
   selectedProject,
+
+  projectMeta = null,
 
   macroId,
 
@@ -282,7 +292,7 @@ export default function RunnerSidebar({
 
 }) {
 
-  const { subscribe } = useSocket();
+  const { subscribe, connected: wsConnected } = useSocket();
 
   const {
 
@@ -318,7 +328,57 @@ export default function RunnerSidebar({
 
   const [selectedSlot, setSelectedSlot] = useState(null);
 
+  const [diagLog, setDiagLog] = useState([]);
 
+  const pushDiag = useCallback((entry) => {
+    const row = { at: new Date(), ...entry };
+    if (import.meta.env.DEV) {
+      console.warn("[exec-diag]", row.label, row.method, row.path, row.status, row.message);
+    }
+    setDiagLog((prev) => [row, ...prev].slice(0, MAX_DIAG_ENTRIES));
+  }, []);
+
+  const apiCall = useCallback(
+    async (label, path, init = {}) => {
+      const method = String(init.method || "GET").toUpperCase();
+      pushDiag({ label, method, path, message: "…" });
+      try {
+        const res = await apiFetch(path, init);
+        const data = await res.json().catch(() => ({}));
+        const enqueued = Array.isArray(data.enqueued) ? data.enqueued.length : null;
+        const message = res.ok
+          ? enqueued != null
+            ? `${enqueued} job(s) enfileirado(s)`
+            : data.hint || "ok"
+          : formatApiFailure(res, data);
+        const extraParts = [];
+        if (Array.isArray(data.workerSlots) && data.workerSlots.length) {
+          extraParts.push(`slots ${data.workerSlots.join(",")}`);
+        }
+        if (data.code) extraParts.push(String(data.code));
+        pushDiag({
+          label,
+          method,
+          path,
+          status: res.status,
+          ok: res.ok,
+          message,
+          extra: extraParts.length ? extraParts.join(" · ") : undefined,
+        });
+        return { res, data };
+      } catch (e) {
+        pushDiag({
+          label,
+          method,
+          path,
+          ok: false,
+          message: e.message || String(e),
+        });
+        throw e;
+      }
+    },
+    [pushDiag]
+  );
 
   const slotsMax = billingSummary?.agentSlotsMax ?? billingSummary?.slotsMax ?? 1;
 
@@ -374,15 +434,15 @@ export default function RunnerSidebar({
 
     try {
 
-      const res = await apiFetch(
+      const { res, data } = await apiCall(
+
+        "Sync estado",
 
         `/api/execution/${encodeURIComponent(selectedProject)}/state`
 
       );
 
       if (!res.ok) return;
-
-      const data = await res.json();
 
       applyExecutionPayload(data);
 
@@ -392,7 +452,7 @@ export default function RunnerSidebar({
 
     }
 
-  }, [selectedProject, applyExecutionPayload]);
+  }, [selectedProject, applyExecutionPayload, apiCall]);
 
 
 
@@ -419,6 +479,8 @@ export default function RunnerSidebar({
   useEffect(() => {
 
     setSelectedSlot(null);
+
+    setDiagLog([]);
 
   }, [selectedProject]);
 
@@ -486,7 +548,9 @@ export default function RunnerSidebar({
 
       try {
 
-        const res = await apiFetch(
+        const { res, data } = await apiCall(
+
+          `Play bot #${slotIndex}`,
 
           `/api/execution/${encodeURIComponent(selectedProject)}/workers/${slotIndex}/start`,
 
@@ -499,8 +563,6 @@ export default function RunnerSidebar({
           }
 
         );
-
-        const data = await res.json().catch(() => ({}));
 
         if (!res.ok) throw new Error(data.error || res.statusText);
 
@@ -565,6 +627,8 @@ export default function RunnerSidebar({
 
       macroId,
 
+      apiCall,
+
       loadExecutionState,
 
       onDashboardRefresh,
@@ -589,15 +653,15 @@ export default function RunnerSidebar({
 
       try {
 
-        const res = await apiFetch(
+        const { res, data } = await apiCall(
+
+          `Parar bot #${slotIndex}`,
 
           `/api/execution/${encodeURIComponent(selectedProject)}/workers/${slotIndex}/stop`,
 
           { method: "POST" }
 
         );
-
-        const data = await res.json().catch(() => ({}));
 
         if (!res.ok) throw new Error(data.error || res.statusText);
 
@@ -633,7 +697,7 @@ export default function RunnerSidebar({
 
     },
 
-    [selectedProject, canExecute, loadingSlot, loadExecutionState, onDashboardRefresh]
+    [selectedProject, canExecute, loadingSlot, apiCall, loadExecutionState, onDashboardRefresh]
 
   );
 
@@ -642,14 +706,14 @@ export default function RunnerSidebar({
     setExecError(null);
     setLoadingSlot(-1);
     try {
-      const res = await apiFetch(
+      const { res, data } = await apiCall(
+        "Play all",
         `/api/execution/${encodeURIComponent(selectedProject)}/play-all`,
         {
           method: "POST",
           body: JSON.stringify({ macroId: macroId || selectedProject }),
         }
       );
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
       if (Array.isArray(data.workerSlots)) {
         setActiveSlots(data.workerSlots);
@@ -677,6 +741,7 @@ export default function RunnerSidebar({
     canExecute,
     loadingSlot,
     macroId,
+    apiCall,
     loadExecutionState,
     onDashboardRefresh,
     onProjectCompleted,
@@ -687,11 +752,11 @@ export default function RunnerSidebar({
     setExecError(null);
     setLoadingSlot(-1);
     try {
-      const res = await apiFetch(
+      const { res, data } = await apiCall(
+        "Pause all",
         `/api/execution/${encodeURIComponent(selectedProject)}/pause`,
         { method: "POST" }
       );
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
       setActiveSlots([]);
       setPauseAfterCurrent(data.pauseAfterCurrent === true);
@@ -706,6 +771,7 @@ export default function RunnerSidebar({
     selectedProject,
     canExecute,
     loadingSlot,
+    apiCall,
     loadExecutionState,
     onDashboardRefresh,
   ]);
@@ -870,6 +936,14 @@ export default function RunnerSidebar({
         {(error || execError) && (
           <p className="runner-sidebar__error">{error || execError}</p>
         )}
+
+        <ExecutionDiagPanel
+          projectMeta={projectMeta}
+          entries={diagLog}
+          wsConnected={wsConnected}
+          activeSlots={activeSlots}
+          execError={execError}
+        />
 
         <section className="runner-sidebar__log-wrap runner-sidebar__log-wrap--fill">
 

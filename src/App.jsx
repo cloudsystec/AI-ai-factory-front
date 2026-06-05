@@ -1171,6 +1171,7 @@ export default function App({ onLogout }) {
       <div className={selectedProject ? "" : "page-disabled"}>
       <RunnerSidebar
         selectedProject={selectedProject}
+        projectMeta={selectedProjectMeta}
         macroId={scopeState?.macroId}
         autorun={autorun}
         skipHumanApproval={skipHumanApproval}

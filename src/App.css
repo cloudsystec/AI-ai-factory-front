@@ -2743,6 +2743,117 @@ select:-webkit-autofill {
   background: rgba(248, 113, 113, 0.08);
 }
 
+.runner-sidebar__diag {
+  margin: 0;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  font-size: 0.72rem;
+}
+
+.runner-sidebar__diag-toggle {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted, #94a3b8);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.runner-sidebar__diag-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #e2e8f0);
+}
+
+.runner-sidebar__diag-body {
+  padding: 0 16px 10px;
+}
+
+.runner-sidebar__diag-kv {
+  display: grid;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+}
+
+.runner-sidebar__diag-kv > div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 6px;
+  align-items: start;
+}
+
+.runner-sidebar__diag-kv dt {
+  margin: 0;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.runner-sidebar__diag-kv dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.runner-sidebar__diag-ok {
+  color: var(--success, #2ecc71);
+}
+
+.runner-sidebar__diag-warn {
+  color: var(--warning, #f1c40f);
+}
+
+.runner-sidebar__diag-err {
+  color: var(--danger, #e74c3c);
+}
+
+.runner-sidebar__diag-last-err {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--danger, #e74c3c);
+}
+
+.runner-sidebar__diag-log {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  list-style: decimal;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.runner-sidebar__diag-log-item--fail {
+  color: var(--danger, #e74c3c);
+}
+
+.runner-sidebar__diag-log-item--ok {
+  color: var(--text-muted, #94a3b8);
+}
+
+.runner-sidebar__diag-log-time {
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.runner-sidebar__diag-log-req {
+  opacity: 0.85;
+}
+
+.runner-sidebar__diag-log-msg {
+  font-weight: 500;
+}
+
+.runner-sidebar__diag-log-extra {
+  opacity: 0.75;
+}
+
+.runner-sidebar__diag-empty {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
 .runner-sidebar__tech {
   margin: 0;
   padding: 0 16px 8px;
