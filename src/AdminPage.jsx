@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 import { AGENT_ROLE_KEYS } from "./agentRoleKeys.js";
+import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 
 /**
- * @param {{ onClose: () => void }} props
+ * Admin plataforma — templates e overrides de agentes.
  */
-export default function AdminPage({ onClose }) {
+export default function AdminPage() {
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState("");
   const [projects, setProjects] = useState([]);
@@ -97,7 +98,7 @@ export default function AdminPage({ onClose }) {
       }
       setMessage(
         mode === "project"
-          ? "Guardado. O próximo job deste projeto sincroniza para workspaces/<slug>/agents/."
+          ? "Salvo. O próximo job deste projeto sincroniza para workspaces/<slug>/agents/."
           : "Template guardado (projetos novos herdam no clone inicial)."
       );
     } catch (err) {
@@ -109,7 +110,7 @@ export default function AdminPage({ onClose }) {
     if (!tenantId || !projectSlug) return;
     if (
       !window.confirm(
-        `Repor agentes do projeto "${projectSlug}" aos templates da plataforma?`
+        `Restaurar agentes do projeto "${projectSlug}" aos templates da plataforma?`
       )
     ) {
       return;
@@ -125,67 +126,86 @@ export default function AdminPage({ onClose }) {
   }
 
   return (
-    <div className="admin-page">
-      <header className="admin-page__header">
-        <h1>Admin plataforma — Agentes</h1>
-        <button type="button" className="toolbar-btn" onClick={onClose}>
-          Voltar ao dashboard
-        </button>
-      </header>
-
+    <AppSubpagePanel
+      className="admin-page"
+      eyebrow="Plataforma"
+      title="Admin — Agentes"
+      subtitle="Templates globais e overrides por projeto."
+    >
       <div className="admin-page__toolbar">
-        <label>
-          Modo
-          <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="templates">Templates plataforma</option>
-            <option value="project">Overrides por projeto</option>
-          </select>
+        <label className="admin-page__field">
+          <span className="admin-page__label">Modo</span>
+          <div className="glass-select-wrap">
+            <select
+              className="glass-select"
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+            >
+              <option value="templates">Templates plataforma</option>
+              <option value="project">Overrides por projeto</option>
+            </select>
+          </div>
         </label>
         {mode === "project" && (
           <>
-            <label>
-              Tenant
-              <select value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-                {tenants.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name || t.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Projeto
-              <select
-                value={projectSlug}
-                onChange={(e) => setProjectSlug(e.target.value)}
-                disabled={projects.length === 0}
-              >
-                {projects.length === 0 ? (
-                  <option value="">Sem projetos</option>
-                ) : (
-                  projects.map((p) => (
-                    <option key={p.slug} value={p.slug}>
-                      {p.slug}
+            <label className="admin-page__field">
+              <span className="admin-page__label">Tenant</span>
+              <div className="glass-select-wrap">
+                <select
+                  className="glass-select"
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                >
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name || t.email}
                     </option>
-                  ))
-                )}
-              </select>
+                  ))}
+                </select>
+              </div>
+            </label>
+            <label className="admin-page__field">
+              <span className="admin-page__label">Projeto</span>
+              <div className="glass-select-wrap">
+                <select
+                  className="glass-select"
+                  value={projectSlug}
+                  onChange={(e) => setProjectSlug(e.target.value)}
+                  disabled={projects.length === 0}
+                >
+                  {projects.length === 0 ? (
+                    <option value="">Sem projetos</option>
+                  ) : (
+                    projects.map((p) => (
+                      <option key={p.slug} value={p.slug}>
+                        {p.slug}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
             </label>
           </>
         )}
-        <label>
-          Role
-          <select value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-            {AGENT_ROLE_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+        <label className="admin-page__field">
+          <span className="admin-page__label">Role</span>
+          <div className="glass-select-wrap">
+            <select
+              className="glass-select"
+              value={roleKey}
+              onChange={(e) => setRoleKey(e.target.value)}
+            >
+              {AGENT_ROLE_KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
         </label>
         {mode === "project" && projectSlug && (
           <button type="button" className="toolbar-btn" onClick={handleReset}>
-            Repor defaults do projeto
+            Restaurar defaults do projeto
           </button>
         )}
       </div>
@@ -211,10 +231,10 @@ export default function AdminPage({ onClose }) {
             className="toolbar-btn toolbar-btn--primary"
             disabled={mode === "project" && !projectSlug}
           >
-            Guardar
+            Salvar
           </button>
         </div>
       </form>
-    </div>
+    </AppSubpagePanel>
   );
 }

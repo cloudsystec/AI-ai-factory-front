@@ -41,13 +41,23 @@ export function canDisconnectClientGit(meta) {
 }
 
 /**
+ * Pode iniciar fluxo de ligar GitHub do cliente (connect ou migrate).
+ * @param {object|null|undefined} meta
+ */
+export function canOfferAddClientGit(meta) {
+  if (!meta || typeof meta !== "object") return false;
+  if (isClientGitConnected(meta)) return false;
+  if (isWorkspacePreparing(meta)) return false;
+  const mode = String(meta.repoMode || "");
+  const status = String(meta.gitStatus || "");
+  return mode === "managed" || status === "not_connected" || !status;
+}
+
+/**
  * @param {object|null|undefined} meta
  */
 export function canConnectClientGit(meta) {
-  if (!meta || typeof meta !== "object") return false;
-  if (meta.status === "completed") return false;
-  const mode = String(meta.repoMode || "");
-  return mode === "managed" || meta.gitStatus === "not_connected";
+  return canOfferAddClientGit(meta);
 }
 
 /**

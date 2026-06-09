@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { suggestSlugFromName } from "./projectSlug.js";
 import { apiFetch } from "./api.js";
+import AppModal from "./components/AppModal.jsx";
 import MacroHelpTrigger from "./MacroHelpTrigger.jsx";
-import MacroHelpDrawer from "./MacroHelpDrawer.jsx";
+import MacroHelpPanel from "./MacroHelpPanel.jsx";
 import ScopePreviewModal from "./ScopePreviewModal.jsx";
 
 /**
@@ -76,29 +77,31 @@ export default function NewProjectModal({ onClose, onCreated }) {
 
   return (
     <>
-      <div
-        className="modal-overlay"
-        role="presentation"
-        onClick={(e) => {
-          if (!submitting && e.target === e.currentTarget) onClose();
-        }}
+      <AppModal
+        variant="form"
+        panelClassName="modal-panel--form"
+        eyebrow="Projeto"
+        title="Criar projeto"
+        titleId="new-project-title"
+        onClose={onClose}
+        closeDisabled={submitting}
+        disableOverlayClose={submitting}
+        closeOnEscape={!drawerOpen && !previewOpen}
+        closeOnOverlayClick={!drawerOpen}
+        companionOpen={drawerOpen}
+        companion={
+          drawerOpen ? (
+            <MacroHelpPanel
+              onClose={() => setDrawerOpen(false)}
+              scopeMd={scope}
+              onScopeChange={setScope}
+              projectName={name}
+              draftSlug={slug}
+            />
+          ) : null
+        }
       >
-        <div
-          className="modal-panel modal-panel--form"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <header className="modal-panel__header">
-            <div>
-              <h2 className="modal-panel__title">Criar projeto</h2>
-            </div>
-            <button type="button" className="modal-panel__close" onClick={onClose} disabled={submitting}>
-              Fechar
-            </button>
-          </header>
-
-          <form className="modal-panel__body new-project-form" onSubmit={handleSubmit}>
+        <form className="modal-panel__body new-project-form" onSubmit={handleSubmit}>
             {statusLoading ? (
               <p className="msg msg--muted">A verificar configuração…</p>
             ) : !macroHelpReady ? (
@@ -149,7 +152,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
                       Preview
                     </button>
                     <MacroHelpTrigger
-                      onClick={() => setDrawerOpen(true)}
+                      onClick={() => setDrawerOpen((open) => !open)}
                       disabled={submitting}
                     />
                   </div>
@@ -173,21 +176,11 @@ export default function NewProjectModal({ onClose, onCreated }) {
                 className="toolbar-btn toolbar-btn--primary"
                 disabled={submitting || !canSubmit}
               >
-                {submitting ? "A criar…" : "Criar projeto"}
+                {submitting ? "Criando…" : "Criar projeto"}
               </button>
             </div>
           </form>
-        </div>
-      </div>
-
-      <MacroHelpDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        scopeMd={scope}
-        onScopeChange={setScope}
-        projectName={name}
-        draftSlug={slug}
-      />
+      </AppModal>
 
       <ScopePreviewModal
         open={previewOpen}

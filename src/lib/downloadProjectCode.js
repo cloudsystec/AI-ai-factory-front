@@ -28,7 +28,7 @@ export async function downloadProjectCode(projectSlug) {
 
   const blob = await res.blob();
   if (blob.size < 22) {
-    throw new Error("Ficheiro ZIP vazio ou corrompido.");
+    throw new Error("Arquivo ZIP vazio ou corrompido.");
   }
 
   const cd = res.headers.get("Content-Disposition") || "";

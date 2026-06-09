@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import AppModal from "./components/AppModal.jsx";
 
 /**
  * @param {{
@@ -38,49 +39,24 @@ export default function RunnerControlsModal({
   onSendInput,
   jobCommand,
 }) {
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   function truncate(str, max) {
     const s = String(str || "");
     return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
   }
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="default"
+      panelClassName="modal-panel--runner-controls"
+      eyebrow="Controle"
+      title="Execução"
+      titleId="runner-controls-title"
+      subtitle={scopeTitle}
+      subtitleClassName="runner-controls-modal__sub"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel modal-panel--runner-controls"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="runner-controls-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">Controlo</p>
-            <h2 id="runner-controls-title" className="modal-panel__title">
-              Execução
-            </h2>
-            <p className="runner-controls-modal__sub">{scopeTitle}</p>
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-
-        <div className="modal-panel__body runner-controls-modal__body">
-          <p className="runner-group__label">Planeamento</p>
+      <div className="modal-panel__body runner-controls-modal__body">
+          <p className="runner-group__label">Planejamento</p>
           <div className="runner-btn-grid runner-btn-grid--modal">
             <button
               type="button"
@@ -190,7 +166,6 @@ export default function RunnerControlsModal({
             </details>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

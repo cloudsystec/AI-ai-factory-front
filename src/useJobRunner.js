@@ -194,13 +194,6 @@ export function useJobRunner(selectedProject, options = {}) {
     return () => clearInterval(timer);
   }, [job?.id, fetchJobDetail, syncJobStatusFromApi]);
 
-  // --- Auto-scroll ---
-  useEffect(() => {
-    const el = logScrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [logText]);
-
   const startJob = useCallback(
     async (body) => {
       if (!selectedProject) return;

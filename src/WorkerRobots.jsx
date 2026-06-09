@@ -1,4 +1,6 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGear, faPause, faPlay, faRobot } from "@fortawesome/free-solid-svg-icons";
 
 import { jobKindLabel } from "./lib/projectGit.js";
 
@@ -24,6 +26,7 @@ import { jobKindLabel } from "./lib/projectGit.js";
  *   onPlayAll?: () => void,
  *   onPauseAll?: () => void,
  *   playAllLoading?: boolean,
+ *   variant?: "grid" | "motor-list" | "uxpilot-list",
  * }} props
  */
 export default function WorkerRobots({
@@ -47,6 +50,7 @@ export default function WorkerRobots({
   onPlayAll,
   onPauseAll,
   playAllLoading = false,
+  variant = "grid",
 }) {
   const max = Math.max(1, Number(slotsMax) || 1);
   const activeSet = new Set(activeSlots);
@@ -80,8 +84,157 @@ export default function WorkerRobots({
     };
   });
 
+  const isUxpilot = variant === "uxpilot-list";
+  const isList = variant === "motor-list";
+
+  function statusLabel({ busy, running, botReady }) {
+    if (!botReady) return "Off";
+    if (busy) return "Executando";
+    if (running) return "Ativo";
+    return "Parado";
+  }
+
+  function statusClass({ busy, running, botReady }) {
+    if (!botReady) return "worker-list-item__status--off";
+    if (busy) return "worker-list-item__status--busy";
+    if (running) return "worker-list-item__status--ready";
+    return "worker-list-item__status--idle";
+  }
+
+  if (isUxpilot) {
+    return (
+      <>
+        {projectCompleted && (
+          <p className="text-dash-caption text-center px-2 py-1" style={{ color: "#64748b" }} role="status">
+            Projeto finalizado — bots desativados
+          </p>
+        )}
+        {slots.map(({ slotIndex, job, busy, botReady, running, otherProject }) => {
+          const selected =
+            selectedSlot === slotIndex || (job?.id && job.id === selectedJobId);
+          const loading = loadingSlot === slotIndex;
+          const active = running || busy;
+          const showStop = running && effectiveControl;
+          const showPlay = !running && effectiveControl && gitReady && botReady;
+          const gitBlocked = effectiveControl && !gitReady && !running;
+
+          function handleSelectBot() {
+            if (!botReady) return;
+            onSelectSlot(job?.id ?? null, slotIndex);
+          }
+
+          return (
+            <div
+              key={slotIndex}
+              role="listitem"
+              className={[
+                "bot-sidebar-card glass-card rounded-xl px-2.5 py-2 flex items-center gap-2 relative",
+                active ? "active" : "",
+                selected ? "ring-1 ring-teal-400/40" : "",
+                !botReady ? "opacity-50" : "cursor-pointer",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              style={{ border: "1px solid rgba(20,184,166,0.15)" }}
+              onClick={handleSelectBot}
+              onKeyDown={(e) => {
+                if (!botReady) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSelectBot();
+                }
+              }}
+              tabIndex={botReady ? 0 : undefined}
+              aria-pressed={botReady ? selected : undefined}
+              title={
+                busy
+                  ? `${jobKindLabel(job.kind, showGitUi)} · ${job.project}`
+                  : "Ver registo deste bot"
+              }
+            >
+              <span className="bot-corner-tl" aria-hidden />
+              <span className="bot-corner-br" aria-hidden />
+              <div className="bot-scan-wrap" aria-hidden>
+                <div className="bot-scan-line" />
+              </div>
+
+              <div
+                className="bot-avatar w-8 h-8 rounded-lg flex-shrink-0"
+                aria-hidden
+              >
+                <div className="bot-avatar-glow" aria-hidden />
+                <FontAwesomeIcon icon={faRobot} className="bot-avatar-icon text-dash-body" />
+                <FontAwesomeIcon icon={faGear} className="bot-gear-a" style={{ top: 2, right: 2 }} />
+                <FontAwesomeIcon icon={faGear} className="bot-gear-b" style={{ bottom: 2, left: 2 }} />
+              </div>
+
+              <div className="flex-1 min-w-0 z-[2]">
+                <p className="bot-num-label text-dash-caption uppercase tracking-wider truncate">
+                  Worker #{String(slotIndex).padStart(2, "0")}
+                </p>
+                <p className="bot-status-text text-dash-caption truncate" style={{ color: "#64748b" }}>
+                  {otherProject
+                    ? `Outro: ${job?.project}`
+                    : statusLabel({ busy, running, botReady })}
+                </p>
+              </div>
+
+              <span className="bot-status-dot flex-shrink-0" aria-hidden />
+
+              {effectiveControl && botReady && (
+                <button
+                  type="button"
+                  className={[
+                    "bot-ctrl-btn",
+                    running ? "bot-ctrl-btn--pause" : "bot-ctrl-btn--play",
+                    loading ? "bot-ctrl-btn--loading" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  disabled={loading || (!showPlay && !showStop)}
+                  title={
+                    running
+                      ? "Pausar este bot"
+                      : gitBlocked
+                        ? workspacePreparing
+                          ? "Preparando workspace…"
+                          : "Aguarde o workspace"
+                        : "Iniciar este bot"
+                  }
+                  aria-label={
+                    running
+                      ? `Pausar worker ${slotIndex}`
+                      : `Iniciar worker ${slotIndex}`
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (running) onSlotStop(slotIndex);
+                    else onSlotStart(slotIndex);
+                  }}
+                >
+                  {loading ? (
+                    <span className="bot-ctrl-btn__spinner" aria-hidden />
+                  ) : (
+                    <FontAwesomeIcon
+                      icon={running ? faPause : faPlay}
+                      className="bot-ctrl-btn__icon"
+                    />
+                  )}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
   return (
-    <div className="worker-robots" aria-label="Workers da conta">
+    <div
+      className={`worker-robots${isList ? " worker-robots--list" : ""}`}
+      aria-label="Workers da conta"
+    >
+      {!isList && (
       <div className="worker-robots__head">
         <p className="worker-robots__label">
           Bots{" "}
@@ -122,6 +275,12 @@ export default function WorkerRobots({
           </div>
         )}
       </div>
+      )}
+      {isList && projectCompleted && (
+        <p className="worker-robots__completed-hint" role="status">
+          Projeto finalizado — bots desactivados
+        </p>
+      )}
       <div className="worker-robots__row" role="list">
         {slots.map(
           ({ slotIndex, job, busy, botReady, running, otherProject }) => {
@@ -129,6 +288,87 @@ export default function WorkerRobots({
               selectedSlot === slotIndex
               || (job?.id && job.id === selectedJobId);
             const loading = loadingSlot === slotIndex;
+
+            if (isList) {
+              const showStop = running && effectiveControl;
+              const showPlay = !running && effectiveControl && gitReady;
+              const gitBlocked = effectiveControl && !gitReady && !running;
+
+              return (
+                <div
+                  key={slotIndex}
+                  role="listitem"
+                  className={[
+                    "worker-list-item",
+                    !botReady ? "worker-list-item--disabled" : "",
+                    busy ? "worker-list-item--busy" : "",
+                    running ? "worker-list-item--running" : "",
+                    selected ? "worker-list-item--selected" : "",
+                    otherProject ? "worker-list-item--other" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {effectiveControl && botReady && (
+                    <button
+                      type="button"
+                      className={`worker-list-item__play${
+                        running ? " worker-list-item__play--stop" : ""
+                      }`}
+                      disabled={loading || (!showPlay && !showStop)}
+                      title={
+                        running
+                          ? "Parar este bot"
+                          : gitBlocked
+                            ? workspacePreparing
+                              ? "A preparar workspace…"
+                              : "Aguarde o workspace"
+                            : "Iniciar bot"
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (running) onSlotStop(slotIndex);
+                        else onSlotStart(slotIndex);
+                      }}
+                    >
+                      {loading ? "…" : running ? "⏸" : "▶"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="worker-list-item__main"
+                    disabled={!botReady}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      botReady && onSelectSlot(job?.id ?? null, slotIndex)
+                    }
+                  >
+                    <span className="worker-list-item__avatar" aria-hidden>
+                      🤖
+                    </span>
+                    <span className="worker-list-item__info">
+                      <span className="worker-list-item__name">
+                        Worker #{String(slotIndex).padStart(2, "0")}
+                      </span>
+                      <span
+                        className={`worker-list-item__status ${statusClass({
+                          busy,
+                          running,
+                          botReady,
+                        })}`}
+                      >
+                        {statusLabel({ busy, running, botReady })}
+                      </span>
+                    </span>
+                  </button>
+                  <span className="worker-list-item__sparkline" aria-hidden>
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </div>
+              );
+            }
 
             if (!botReady) {
               return (

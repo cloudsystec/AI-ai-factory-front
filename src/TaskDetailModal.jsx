@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import MarkdownPreview from "./MarkdownPreview.jsx";
+import AppModal from "./components/AppModal.jsx";
 import { buildPipelineSummary, isPipelineRunning } from "./pipeline.js";
 import { apiFetch } from "./api.js";
 import { useSocket } from "./useSocket.jsx";
@@ -156,14 +157,6 @@ export default function TaskDetailModal({
     taskId,
   ]);
 
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   const runtime = detail?.runtime ?? runtimeSnapshot;
   const title =
     detail?.backlog?.title ?? runtime?.title ?? runtimeSnapshot?.title ?? taskId;
@@ -173,41 +166,23 @@ export default function TaskDetailModal({
   const partialOnly = !detail && Boolean(runtimeSnapshot);
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="task"
+      eyebrow={taskId}
+      title={title}
+      titleId="task-detail-title"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="task-detail-title"
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">{taskId}</p>
-            <h2 id="task-detail-title" className="modal-panel__title">
-              {title}
-            </h2>
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-
-        <div className="modal-panel__body">
+      <div className="modal-panel__body">
           {loading && !detail && !runtimeSnapshot && (
-            <p className="msg msg--muted">A carregar detalhe…</p>
+            <p className="msg msg--muted">Carregando detalhe…</p>
           )}
           {error && !detail && !runtimeSnapshot && (
             <p className="msg msg--error">{error}</p>
           )}
           {partialOnly && !loading && (
             <p className="msg msg--muted">
-              Vista parcial do Kanban — a sincronizar descrição e artefatos…
+              Visão parcial do Kanban — sincronizando descrição e artefatos…
             </p>
           )}
 
@@ -337,7 +312,6 @@ export default function TaskDetailModal({
             </>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

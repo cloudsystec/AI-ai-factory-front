@@ -1,6 +1,7 @@
 import React, { useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import "./App.css";
+import "./styles/app-glass-theme.css";
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
 import LandingPage from "./landing/LandingPage.jsx";
@@ -69,6 +70,7 @@ function Root() {
   }
 
   if (path === "/app") {
+    document.body.classList.add("app-body");
     return <AppRoute />;
   }
 

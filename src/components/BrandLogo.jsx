@@ -37,10 +37,7 @@ export default function BrandLogo({
 
   if (href) {
     return (
-      <a
-        href={href}
-        className={`inline-flex items-center shrink-0 ${linkClassName}`.trim()}
-      >
+      <a href={href} className={`brand-logo-link ${linkClassName}`.trim()}>
         {img}
         <span className="sr-only">{BRAND_NAME}</span>
       </a>

@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import AppModal from "./components/AppModal.jsx";
 
 const DELIVERY_LABELS = {
   open: "Em curso",
@@ -35,41 +36,18 @@ function deliveryBadge(status) {
 }
 
 export default function MicrosDetailModal({ micros, onClose }) {
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   const list = Array.isArray(micros) ? micros : [];
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="macro"
+      panelClassName="modal-panel--wide"
+      eyebrow="Escopo"
+      title="Microescopos"
+      titleId="micros-detail-title"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel modal-panel--wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="micros-detail-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <h2 id="micros-detail-title" className="modal-panel__title">
-            Microescopos
-          </h2>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-
-        <div className="modal-panel__body micros-detail__list">
+      <div className="modal-panel__body micros-detail__list">
           {list.length === 0 && (
             <p className="msg msg--muted">Nenhum micro aprovado.</p>
           )}
@@ -117,7 +95,6 @@ export default function MicrosDetailModal({ micros, onClose }) {
             </article>
           ))}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

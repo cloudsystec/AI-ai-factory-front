@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api.js";
+import AppModal from "./components/AppModal.jsx";
 
 /**
  * @param {{
@@ -141,32 +142,17 @@ export default function ConnectGitModal({
   const canSubmit = installationId && repoValid && !submitting;
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (!submitting && e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="git"
+      panelClassName="modal-panel--form"
+      eyebrow={`Projeto · ${projectSlug}`}
+      title={migrateMode ? "Conectar ao seu GitHub" : "Conectar Git"}
+      titleId="connect-git-title"
+      onClose={onClose}
+      closeDisabled={submitting}
+      disableOverlayClose={submitting}
     >
-      <div
-        className="modal-panel modal-panel--form"
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <h2 className="modal-panel__title">
-              {migrateMode ? "Conectar ao seu GitHub" : "Conectar Git"}
-            </h2>
-            <p className="modal-panel__eyebrow">Projeto: {projectSlug}</p>
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose} disabled={submitting}>
-            Fechar
-          </button>
-        </header>
-
-        <form className="modal-panel__body new-project-form" onSubmit={handleConnect}>
+      <form className="modal-panel__body new-project-form" onSubmit={handleConnect}>
           {error && <p className="msg msg--error">{error}</p>}
 
           {checking && <p className="msg msg--muted">A verificar GitHub...</p>}
@@ -286,7 +272,6 @@ export default function ConnectGitModal({
             </>
           )}
         </form>
-      </div>
-    </div>
+    </AppModal>
   );
 }

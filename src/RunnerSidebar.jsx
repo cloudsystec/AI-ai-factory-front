@@ -780,7 +780,7 @@ export default function RunnerSidebar({
 
   return (
 
-    <aside className="runner-sidebar" aria-label="Controlo de execução">
+    <aside className="runner-sidebar" aria-label="Controle de execução">
 
       <header className="runner-sidebar__head runner-sidebar__head--compact">
         <div className="runner-sidebar__head-row">

@@ -1,50 +1,44 @@
 import React from "react";
 import MarkdownPreview from "./MarkdownPreview.jsx";
+import AppModal from "./components/AppModal.jsx";
 
 /**
  * @param {{
  *   open: boolean,
  *   content: string,
+ *   overlayClassName?: string,
  *   onClose: () => void,
+ *   eyebrow?: string,
+ *   title?: string,
  * }} props
  */
-export default function ScopePreviewModal({ open, content, onClose }) {
+export default function ScopePreviewModal({
+  open,
+  content,
+  onClose,
+  overlayClassName = "",
+  eyebrow = "Preview",
+  title = "Escopo (markdown)",
+}) {
   if (!open) return null;
 
   return (
-    <div
-      className="modal-overlay scope-preview-modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="scope"
+      panelClassName="modal-panel--wide scope-preview-modal"
+      overlayClassName={overlayClassName}
+      eyebrow={eyebrow}
+      title={title}
+      titleId="scope-preview-title"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel modal-panel--wide scope-preview-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="scope-preview-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">Preview</p>
-            <h2 id="scope-preview-title" className="modal-panel__title">
-              Escopo (markdown)
-            </h2>
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-        <div className="modal-panel__body scope-preview-modal__body">
-          {content.trim() ? (
-            <MarkdownPreview content={content} />
-          ) : (
-            <p className="msg msg--muted">Nenhum conteúdo para pré-visualizar.</p>
-          )}
-        </div>
+      <div className="modal-panel__body scope-preview-modal__body">
+        {content.trim() ? (
+          <MarkdownPreview content={content} />
+        ) : (
+          <p className="msg msg--muted">Nenhum conteúdo para pré-visualizar.</p>
+        )}
       </div>
-    </div>
+    </AppModal>
   );
 }

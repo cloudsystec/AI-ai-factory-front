@@ -60,7 +60,8 @@ export default function GitDisconnectPanel({
 
   if (!canDisconnect && !showPanel) return null;
 
-  const showStatusPanel = showPanel && (tone !== "idle" || error);
+  const showStatusPanel =
+    showPanel && (tone !== "idle" || error) && tone !== "success";
 
   return (
     <div className="git-disconnect-panel">

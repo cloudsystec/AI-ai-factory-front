@@ -3,8 +3,8 @@ import { apiFetch } from "./api.js";
 import ScopePreviewModal from "./ScopePreviewModal.jsx";
 
 /**
+ * Painel de chat ao lado da modal de escopo (sem overlay próprio).
  * @param {{
- *   open: boolean,
  *   onClose: () => void,
  *   scopeMd: string,
  *   onScopeChange: (scopeMd: string) => void,
@@ -13,8 +13,7 @@ import ScopePreviewModal from "./ScopePreviewModal.jsx";
  *   draftSlug?: string,
  * }} props
  */
-export default function MacroHelpDrawer({
-  open,
+export default function MacroHelpPanel({
   onClose,
   scopeMd,
   onScopeChange,
@@ -31,25 +30,26 @@ export default function MacroHelpDrawer({
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (open) {
-      setLastScopeMd(scopeMd);
-      setError(null);
-    }
-  }, [open, scopeMd]);
+    setLastScopeMd(scopeMd);
+    setError(null);
+  }, [scopeMd]);
 
   useEffect(() => {
-    if (open && messagesEndRef.current) {
+    if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, open, pending]);
+  }, [messages, pending]);
 
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === "Escape" && open && !pending) onClose();
+      if (e.key === "Escape" && !pending) {
+        e.stopPropagation();
+        onClose();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, pending]);
+  }, [onClose, pending]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -95,25 +95,9 @@ export default function MacroHelpDrawer({
     }
   }
 
-  function handleApplyAndClose() {
-    if (lastScopeMd.trim()) {
-      onScopeChange(lastScopeMd.trim());
-    }
-    onClose();
-  }
-
-  if (!open) return null;
-
   return (
     <>
-      <div
-        className="macro-help-drawer-backdrop"
-        role="presentation"
-        onClick={() => {
-          if (!pending) onClose();
-        }}
-      />
-      <aside className="macro-help-drawer" aria-label="Ajuda com escopo macro">
+      <aside className="macro-help-companion-panel" aria-label="Ajuda com escopo macro">
         <header className="macro-help-drawer__head">
           <div>
             <p className="macro-help-drawer__eyebrow">MacroHelp</p>
@@ -124,16 +108,21 @@ export default function MacroHelpDrawer({
             className="modal-panel__close"
             onClick={onClose}
             disabled={pending}
+            aria-label="Fechar painel de ajuda"
           >
             Fechar
           </button>
         </header>
 
-        <div className="macro-help-drawer__messages">
+        <p className="macro-help-companion-panel__hint">
+          O escopo à esquerda atualiza em tempo real — pode copiar, colar e editar
+          enquanto conversa.
+        </p>
+
+        <div className="macro-help-drawer__messages custom-scrollbar">
           {messages.length === 0 && (
             <p className="macro-help-drawer__hint msg msg--muted">
-              Descreva o produto ou peça melhorias ao escopo atual. A IA irá
-              atualizar o texto na caixa de escopo.
+              Descreva o produto ou peça melhorias ao escopo atual.
             </p>
           )}
           {messages.map((msg, i) => (
@@ -171,14 +160,6 @@ export default function MacroHelpDrawer({
               Preview
             </button>
             <button
-              type="button"
-              className="toolbar-btn toolbar-btn--primary"
-              onClick={handleApplyAndClose}
-              disabled={pending || !lastScopeMd.trim()}
-            >
-              Usar este escopo e fechar
-            </button>
-            <button
               type="submit"
               className="toolbar-btn toolbar-btn--primary"
               disabled={pending || !input.trim()}
@@ -192,6 +173,7 @@ export default function MacroHelpDrawer({
       <ScopePreviewModal
         open={previewOpen}
         content={lastScopeMd}
+        overlayClassName="modal-overlay--above-drawer"
         onClose={() => setPreviewOpen(false)}
       />
     </>

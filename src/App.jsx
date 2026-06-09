@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import "./styles/dashboard-app.css";
 import {
   PIPELINE_STEPS,
   getStepVisualState,
@@ -9,10 +10,6 @@ import TaskDetailModal from "./TaskDetailModal.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
 import ProjectSettingsModal from "./ProjectSettingsModal.jsx";
 import ConnectGitModal from "./ConnectGitModal.jsx";
-import RunnerSidebar from "./RunnerSidebar.jsx";
-import BillingPanel from "./BillingPanel.jsx";
-import ProjectCostPanel from "./ProjectCostPanel.jsx";
-import ProjectBar from "./ProjectBar.jsx";
 import ScopeDetailModal from "./ScopeDetailModal.jsx";
 import MicrosDetailModal from "./MicrosDetailModal.jsx";
 import MacroDetailModal from "./MacroDetailModal.jsx";
@@ -22,13 +19,19 @@ import AdminPage from "./AdminPage.jsx";
 import AdminWorkersPage from "./AdminWorkersPage.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
+import DashboardShell from "./layout/DashboardShell.jsx";
+import DashboardTopBar from "./components/DashboardTopBar.jsx";
+import MotorSidebar from "./components/MotorSidebar.jsx";
+import MetricsSidebar from "./components/MetricsSidebar.jsx";
+import CommandCenter from "./components/CommandCenter.jsx";
+import { RunnerExecutionProvider } from "./context/RunnerExecutionContext.jsx";
+import { RailwayPublishProvider } from "./context/RailwayPublishContext.jsx";
 import { apiFetch } from "./api.js";
 import {
   isClientGitConnected,
   isGitReadyForPlay,
   isWorkspacePreparing,
 } from "./lib/projectGit.js";
-import { BRAND_NAME } from "./brand.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import { useSocket } from "./useSocket.jsx";
 
@@ -36,7 +39,7 @@ const columns = [
   { key: "todo", title: "A fazer", icon: "📥" },
   { key: "development", title: "Desenvolvimento", icon: "⚙️" },
   { key: "testing", title: "Testes / QA", icon: "🧪" },
-  { key: "human_approval", title: "Aguardando Revisão Humana", icon: "👤" },
+  { key: "human_approval", title: "Revisão", icon: "👤" },
   { key: "done", title: "Concluído", icon: "✅" },
   { key: "blocked", title: "Bloqueado", icon: "⛔" },
 ];
@@ -57,6 +60,19 @@ function formatUpdated(iso) {
   }
 }
 
+function formatTimeShort(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 function stepIcon(visual) {
   if (visual === "completed") return "✓";
   if (visual === "active") return "●";
@@ -69,7 +85,7 @@ function normalizeAgent(agent) {
 }
 
 const AGENT_LABELS = {
-  "Planner Agent": "Planeamento",
+  "Planner Agent": "Planejamento",
   "Dev Agent": "Desenvolvimento",
   "QA Agent": "Qualidade",
   "Reviewer Agent": "Revisão",
@@ -185,13 +201,43 @@ function TaskCard({
   canExecute,
   pullRequest,
   showGitUi = true,
+  visual = "default",
 }) {
+  const uxpilot = visual === "uxpilot";
+  const uxpilotCardClass =
+    "glass-card rounded-xl p-3 border-l-2 task-card-hover cursor-pointer";
+  const uxpilotCardStyle = {
+    borderLeftColor: "rgba(20,184,166,0.55)",
+    background:
+      "linear-gradient(145deg,rgba(20,184,166,0.05) 0%,rgba(14,24,50,0.6) 100%)",
+  };
+
+  function openTaskDetail(e) {
+    if (e?.target?.closest?.("a, button")) return;
+    onOpenDetail(task.id);
+  }
+
   if (isCompactDoneTask(task)) {
     return (
       <article
-        className="task-card task-card--compact-done"
+        className={
+          uxpilot
+            ? `${uxpilotCardClass} task-card--compact-done`
+            : "task-card task-card--compact-done"
+        }
+        style={uxpilot ? uxpilotCardStyle : undefined}
         data-task-id={task.id}
         title={`${task.id} — concluída`}
+        onClick={uxpilot ? openTaskDetail : undefined}
+        onKeyDown={
+          uxpilot
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") openTaskDetail(e);
+              }
+            : undefined
+        }
+        role={uxpilot ? "button" : undefined}
+        tabIndex={uxpilot ? 0 : undefined}
       >
         <span className="task-card__done-icon" aria-hidden>
           ✓
@@ -206,21 +252,53 @@ function TaskCard({
   const running = isPipelineRunning(task) && !task.blockReason;
   const blocked = task.status === "blocked" || Boolean(task.blockReason);
   const backlogReady = task.backlogReady === true;
+  const inTodo = getKanbanColumn(task) === "todo";
 
   return (
     <article
-      className={`task-card${running ? " task-card--running" : ""}${blocked ? " task-card--blocked" : ""}${backlogReady ? " task-card--backlog-ready" : ""}`}
+      className={
+        uxpilot
+          ? [
+              uxpilotCardClass,
+              running ? " task-card--running" : "",
+              blocked ? " task-card--blocked" : "",
+            ]
+              .filter(Boolean)
+              .join("")
+          : `task-card${running ? " task-card--running" : ""}${blocked ? " task-card--blocked" : ""}${backlogReady ? " task-card--backlog-ready" : ""}${inTodo ? " task-card--todo-col" : ""}`
+      }
+      style={uxpilot ? uxpilotCardStyle : undefined}
       data-task-id={task.id}
+      onClick={uxpilot ? openTaskDetail : undefined}
+      onKeyDown={
+        uxpilot
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") openTaskDetail(e);
+            }
+          : undefined
+      }
+      role={uxpilot ? "button" : undefined}
+      tabIndex={uxpilot ? 0 : undefined}
     >
       <div className="task-card__id">{task.id}</div>
       <h3 className="task-card__title">
         <TaskTitleButton task={task} onOpenDetail={onOpenDetail} />
       </h3>
+      {inTodo && task.id && (
+        <p className="task-card__subtitle">{task.id}</p>
+      )}
       <div className="task-card__meta">
-        <span>{task.project}</span>
-        <span>{formatUpdated(task.updatedAt)}</span>
+        {!inTodo && <span>{task.project}</span>}
+        {(backlogReady || (inTodo && !running && !blocked)) && (
+          <span className="task-card__status-pill" role="status">
+            Pronto
+          </span>
+        )}
+        <span className="task-card__time">
+          {inTodo ? formatTimeShort(task.updatedAt) : formatUpdated(task.updatedAt)}
+        </span>
       </div>
-      {backlogReady && (
+      {backlogReady && !inTodo && (
         <p className="task-card__backlog-badge" role="status">
           Pronta para desenvolvimento
         </p>
@@ -295,166 +373,6 @@ function TaskCard({
   );
 }
 
-function scopeStepIcon(state) {
-  if (state === "done") return "✓";
-  if (state === "active") return "●";
-  return "○";
-}
-
-function isScopeStateRenderable(scope) {
-  return (
-    scope &&
-    scope.current &&
-    typeof scope.current.label === "string" &&
-    Array.isArray(scope.scopeSteps) &&
-    scope.scopeSteps.length > 0
-  );
-}
-
-function ScopeStrip({
-  scope,
-  onOpenDetail,
-  onMacroClick,
-  onMicrosClick,
-  onTasksClick,
-  onDevClick,
-}) {
-  if (!isScopeStateRenderable(scope)) {
-    return (
-      <section className="scope-strip scope-strip--loading msg msg--muted">
-        Estado do escopo ainda não disponível — execute um job no CLI (ex.: provision ou
-        scope) para sincronizar.
-      </section>
-    );
-  }
-
-  const waveStats = scope.waveTaskStats ?? {
-    total: 0,
-    pendingTl: 0,
-    todoApproved: 0,
-  };
-
-  return (
-    <section
-      className={`scope-strip scope-strip--compact${
-        scope.projectCompleted ? " scope-strip--completed" : ""
-      }`}
-      aria-labelledby="scope-current-heading"
-    >
-      <div className="scope-strip__top scope-strip__top--compact">
-        <div className="scope-strip__compact-main">
-          <span className="scope-strip__eyebrow">
-            {scope.projectCompleted ? "Concluído" : "Planeamento"}
-          </span>
-          <div className="scope-strip__title-row">
-            <h2 id="scope-current-heading" className="scope-strip__current">
-              {scope.current.label}
-            </h2>
-            {scope.devPipelineActive && (
-              <span className="scope-strip__live">
-                <span className="pipeline-live-badge__dot" aria-hidden />
-                Em desenvolvimento
-              </span>
-            )}
-          </div>
-          <p className="scope-strip__summary-line">
-            {scope.macroId}
-            {scope.openMicro
-              ? ` · ${scope.openMicro.title}${
-                  scope.openMicro.wavePhase ? ` (${scope.openMicro.wavePhase})` : ""
-                }`
-              : scope.wavesCompleteScenario
-                ? " · fases concluídas"
-                : ""}
-            {" · "}
-            {waveStats.todoApproved} prontas · {waveStats.pendingTl} em revisão
-          </p>
-        </div>
-        {onOpenDetail && (
-          <button
-            type="button"
-            className="scope-strip__detail-btn"
-            onClick={onOpenDetail}
-          >
-            Detalhes
-          </button>
-        )}
-      </div>
-
-      <div className="scope-strip__steps scope-strip__steps--compact" role="list">
-        {scope.scopeSteps.map((step, i) => {
-          const clickable =
-            (step.key === "macro" && onMacroClick) ||
-            (step.key === "micro" && onMicrosClick) ||
-            (step.key === "tasking" && onTasksClick) ||
-            (step.key === "dev" && scope.projectCompleted && onDevClick);
-          const onStepClick =
-            step.key === "macro"
-              ? onMacroClick
-              : step.key === "micro"
-                ? onMicrosClick
-                : step.key === "tasking"
-                  ? onTasksClick
-                  : step.key === "dev" && scope.projectCompleted
-                    ? onDevClick
-                    : undefined;
-          const stepEl = (
-            <div
-              role={clickable ? "button" : "listitem"}
-              tabIndex={clickable ? 0 : undefined}
-              className={`scope-strip__step scope-strip__step--${step.state}${
-                step.state === "active" ? " scope-strip__step--pulse" : ""
-              }${clickable ? " scope-strip__step--clickable" : ""}`}
-              title={
-                clickable
-                  ? step.key === "macro"
-                    ? "Ver ou editar escopo macro"
-                    : step.key === "micro"
-                      ? "Ver microescopos"
-                      : step.key === "tasking"
-                        ? "Ver tasks do micro actual e dependências"
-                        : "Ver resumo de finalização do projeto"
-                  : `${step.label}: ${step.state}`
-              }
-              onClick={clickable ? onStepClick : undefined}
-              onKeyDown={
-                clickable
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onStepClick?.();
-                      }
-                    }
-                  : undefined
-              }
-            >
-              <div className="scope-strip__ring">
-                <span aria-hidden>{scopeStepIcon(step.state)}</span>
-              </div>
-              <span className="scope-strip__step-label">{step.label}</span>
-            </div>
-          );
-          return (
-            <React.Fragment key={step.key}>
-              {i > 0 && (
-                <div
-                  className={
-                    scope.scopeSteps[i - 1].state === "done"
-                      ? "scope-strip__conn scope-strip__conn--done"
-                      : "scope-strip__conn"
-                  }
-                  aria-hidden
-                />
-              )}
-              {stepEl}
-            </React.Fragment>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 export default function App({ onLogout }) {
   const caps = useCapabilities();
   const { session, isPlatformAdmin } = useSession();
@@ -477,10 +395,7 @@ export default function App({ onLogout }) {
   const [detailTaskId, setDetailTaskId] = useState(null);
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [showAdminWorkers, setShowAdminWorkers] = useState(false);
-  const [showUsers, setShowUsers] = useState(false);
-  const [showAgents, setShowAgents] = useState(false);
+  const [appView, setAppView] = useState("dashboard");
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
   const [resetNotice, setResetNotice] = useState(null);
@@ -615,7 +530,7 @@ export default function App({ onLogout }) {
   const handleResetProject = useCallback(async () => {
     if (!selectedProject || resetting) return;
     const ok = window.confirm(
-      `Repor o projeto "${selectedProject}" ao zero?\n\n` +
+      `Restaurar o projeto "${selectedProject}" ao zero?\n\n` +
         "• Cria backup ZIP em data/tenants/.../BACKUP/<data>/ (workspace, macro, código, relatórios)\n" +
         "• Apaga o workspace atual no CLI e restaura só o escopo macro da BD\n" +
         "• Limpa micros, tarefas e snapshot do painel\n\n" +
@@ -745,23 +660,17 @@ export default function App({ onLogout }) {
 
   const canExecuteProject = caps.canExecute && !projectCompleted;
 
-  useEffect(() => {
-    if (!selectedProject || !projectCompleted) return;
-    const key = `ai-factory-completion-seen-${selectedProject}`;
-    try {
-      if (localStorage.getItem(key) === "1") return;
-      localStorage.setItem(key, "1");
-    } catch {
-      /* ignore */
-    }
-    setShowProjectCompletion(true);
-  }, [selectedProject, projectCompleted]);
+  const completionCelebratedRef = useRef(/** @type {Set<string>} */ (new Set()));
 
   const handleProjectCompleted = useCallback(async () => {
+    const slug = selectedProject;
+    if (!slug) return;
+    if (completionCelebratedRef.current.has(slug)) return;
+    completionCelebratedRef.current.add(slug);
     await loadProjects();
     await loadDashboardData();
     setShowProjectCompletion(true);
-  }, [loadProjects, loadDashboardData]);
+  }, [selectedProject, loadProjects, loadDashboardData]);
 
   async function handleRetryTask(task) {
     if (!selectedProject) return;
@@ -863,211 +772,178 @@ export default function App({ onLogout }) {
     }
   }
 
-  if (showAdminWorkers) {
-    return <AdminWorkersPage onClose={() => setShowAdminWorkers(false)} />;
-  }
-  if (showAdmin) {
-    return <AdminPage onClose={() => setShowAdmin(false)} />;
-  }
-  if (showUsers) {
-    return <UsersPage onClose={() => setShowUsers(false)} />;
-  }
-  if (showAgents) {
-    return (
-      <AgentsPage
-        projectSlug={selectedProject}
-        onClose={() => setShowAgents(false)}
-      />
-    );
-  }
+  const toggleAppView = useCallback((view) => {
+    setAppView((current) => (current === view ? "dashboard" : view));
+  }, []);
+
+  const goDashboard = useCallback(() => setAppView("dashboard"), []);
+
+  const isDashboardView = appView === "dashboard";
+
+  const runnerProps = {
+    selectedProject,
+    projectMeta: selectedProjectMeta,
+    macroId: scopeState?.macroId,
+    autorun,
+    skipHumanApproval,
+    canExecute: canExecuteProject,
+    projectCompleted,
+    canWrite: caps.canWrite,
+    gitReady: isGitReadyForPlay(selectedProjectMeta),
+    workspacePreparing: isWorkspacePreparing(selectedProjectMeta),
+    showGitUi: isClientGitConnected(selectedProjectMeta),
+    onAutorunChange: handleAutorunChange,
+    onSkipHumanChange: handleSkipHumanChange,
+    tasks,
+    detailTaskId,
+    onDashboardRefresh: loadDashboardData,
+    onProjectsRefresh: loadProjects,
+    onProjectCompleted: handleProjectCompleted,
+    billingSummary,
+  };
 
   return (
-    <div className="page-shell">
-      <main className="page">
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">
-            {session?.tenantName || BRAND_NAME}
-          </h1>
-          <p className="page-subtitle">
-            {session?.email || "Acompanhe o planeamento e o progresso das entregas do projeto selecionado."}
-          </p>
-        </div>
-        <div className="page-header__actions">
-          {selectedProject && runningCount > 0 && (
-            <div className="page-header__pill">
-              <span className="pipeline-live-badge__dot" aria-hidden />
-              {runningCount} em execução
+    <RailwayPublishProvider projectSlug={selectedProject || null}>
+      <RunnerExecutionProvider {...runnerProps}>
+        <DashboardShell
+          topBar={
+            <DashboardTopBar
+              tenantName={session?.tenantName}
+              email={session?.email}
+              runningCount={runningCount}
+              canManageUsers={caps.canManageUsers}
+              canExecute={caps.canExecute}
+              isPlatformAdmin={isPlatformAdmin}
+              onUsers={() => toggleAppView("users")}
+              onAgents={() => toggleAppView("agents")}
+              onAdminWorkers={() => toggleAppView("adminWorkers")}
+              onAdmin={() => toggleAppView("admin")}
+              activeView={appView}
+              onHome={goDashboard}
+              onLogout={onLogout}
+              scope={scopeState}
+              projectCompleted={projectCompleted}
+              onMacroClick={() => setShowMacroDetail(true)}
+              onMicrosClick={() => setShowMicrosDetail(true)}
+              onTasksClick={async () => {
+                await loadDashboardData();
+                setShowTasksDetail(true);
+              }}
+              onDevClick={() => setShowProjectCompletion(true)}
+              projects={projects}
+              selectedProject={selectedProject}
+              selectedProjectMeta={selectedProjectMeta}
+              onProjectChange={setSelectedProject}
+              canWrite={caps.canWrite}
+              onNewProject={
+                caps.canWrite ? () => setShowNewProjectModal(true) : undefined
+              }
+              onEditProject={
+                caps.canWrite && selectedProject
+                  ? () => setShowProjectSettings(true)
+                  : undefined
+              }
+              notificationProjectSlug={
+                projectCompleted && selectedProject ? selectedProject : null
+              }
+              notificationProjectName={
+                projectCompleted && selectedProjectMeta
+                  ? typeof selectedProjectMeta === "object"
+                    ? selectedProjectMeta.name || selectedProject
+                    : selectedProject
+                  : null
+              }
+            />
+          }
+          motor={isDashboardView ? <MotorSidebar /> : null}
+          center={
+            isDashboardView ? (
+            <div className="flex flex-col flex-1 min-h-0 gap-3">
+              {(resetNotice ||
+                resetError ||
+                githubNotice ||
+                developSettingsError ||
+                projectsError) && (
+                <div className="dashboard-alerts" role="status">
+                  {resetNotice && <p className="msg msg--ok">{resetNotice}</p>}
+                  {resetError && (
+                    <p className="msg msg--error">{resetError}</p>
+                  )}
+                  {githubNotice && (
+                    <p className="msg msg--error">{githubNotice}</p>
+                  )}
+                  {developSettingsError && (
+                    <p className="msg msg--error">{developSettingsError}</p>
+                  )}
+                  {projectsError && (
+                    <p className="msg msg--error">
+                      Erro ao carregar projetos: {projectsError}
+                    </p>
+                  )}
+                </div>
+              )}
+              <CommandCenter
+                columns={columns}
+                tasks={tasks}
+                getKanbanColumn={getKanbanColumn}
+                disabled={!selectedProject}
+                emptyHint={
+                  !selectedProject
+                    ? "Selecione um projeto para ver o quadro de tarefas."
+                    : null
+                }
+                renderTaskCard={(task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    visual="uxpilot"
+                    onOpenDetail={setDetailTaskId}
+                    onHumanApprove={handleHumanApprove}
+                    onRetry={handleRetryTask}
+                    canApprove={caps.canWrite || canExecuteProject}
+                    canExecute={canExecuteProject}
+                    pullRequest={taskPullRequests[task.id]}
+                    showGitUi={isClientGitConnected(selectedProjectMeta)}
+                  />
+                )}
+              />
             </div>
-          )}
-          {(caps.canManageUsers || isPlatformAdmin) && (
-            <button
-              type="button"
-              className="toolbar-btn"
-              onClick={() => setShowUsers(true)}
-            >
-              Utilizadores
-            </button>
-          )}
-          {caps.canExecute && (
-            <button
-              type="button"
-              className="toolbar-btn"
-              onClick={() => setShowAgents(true)}
-            >
-              Agentes
-            </button>
-          )}
-          {isPlatformAdmin && (
-            <>
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={() => setShowAdminWorkers(true)}
-              >
-                Bots
-              </button>
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={() => setShowAdmin(true)}
-              >
-                Admin plataforma
-              </button>
-            </>
-          )}
-          {onLogout && (
-            <button type="button" className="toolbar-btn" onClick={onLogout}>
-              Sair
-            </button>
-          )}
-        </div>
-      </header>
-
-      <div className="top-panels">
-        <ProjectBar
-          projects={projects}
-          selectedProject={selectedProject}
-          selectedProjectMeta={selectedProjectMeta}
-          onProjectChange={setSelectedProject}
-          canWrite={caps.canWrite}
-          onNewProject={
-            caps.canWrite ? () => setShowNewProjectModal(true) : undefined
+            ) : appView === "agents" ? (
+              <AgentsPage
+                projectSlug={selectedProject}
+                projectName={
+                  selectedProjectMeta && typeof selectedProjectMeta === "object"
+                    ? selectedProjectMeta.name
+                    : selectedProject
+                }
+              />
+            ) : appView === "users" ? (
+              <UsersPage />
+            ) : appView === "admin" ? (
+              <AdminPage />
+            ) : appView === "adminWorkers" ? (
+              <AdminWorkersPage />
+            ) : null
           }
-          onEditProject={
-            caps.canWrite && selectedProject
-              ? () => setShowProjectSettings(true)
-              : undefined
+          metrics={
+            isDashboardView ? (
+            <MetricsSidebar
+              projectSlug={selectedProject}
+              cotation={billingSummary?.cotation}
+              scope={scopeState}
+              projectCompleted={projectCompleted}
+              onBillingSummary={setBillingSummary}
+              onMacroClick={() => setShowMacroDetail(true)}
+              onMicrosClick={() => setShowMicrosDetail(true)}
+              onTasksClick={async () => {
+                await loadDashboardData();
+                setShowTasksDetail(true);
+              }}
+              onDevClick={() => setShowProjectCompletion(true)}
+            />
+            ) : null
           }
-          onConnectGit={
-            caps.canWrite && selectedProject
-              ? () => setShowConnectGitModal(true)
-              : undefined
-          }
-          onRefreshProjects={loadProjects}
-          onResetProject={
-            caps.canWrite && selectedProject
-              ? () => handleResetProject()
-              : undefined
-          }
-          onDeleteProject={
-            caps.canWrite && selectedProject
-              ? () => handleDeleteProject()
-              : undefined
-          }
-          resetting={resetting}
-          runningCount={runningCount}
-          projectCompleted={projectCompleted}
         />
-        <ProjectCostPanel
-          projectSlug={selectedProject}
-          cotation={billingSummary?.cotation}
-        />
-        <BillingPanel compact onSummary={setBillingSummary} />
-      </div>
-
-      {resetNotice && (
-        <p className="msg msg--ok">{resetNotice}</p>
-      )}
-
-      {resetError && (
-        <p className="msg msg--error">{resetError}</p>
-      )}
-
-      {githubNotice && (
-        <p className="msg msg--error">{githubNotice}</p>
-      )}
-
-      {developSettingsError && (
-        <p className="msg msg--error">{developSettingsError}</p>
-      )}
-
-      {projectsError && (
-        <p className="msg msg--error">Erro ao carregar projetos: {projectsError}</p>
-      )}
-
-      {!selectedProject && (
-        <p className="msg msg--muted">Selecione um projeto para ver o quadro de tarefas.</p>
-      )}
-
-      <div className={selectedProject ? "" : "page-disabled"}>
-
-      {selectedProject &&
-        (scopeState !== null ? (
-          <ScopeStrip
-            scope={scopeState}
-            onOpenDetail={() => setShowScopeDetail(true)}
-            onMacroClick={() => setShowMacroDetail(true)}
-            onMicrosClick={() => setShowMicrosDetail(true)}
-            onTasksClick={async () => {
-              await loadDashboardData();
-              setShowTasksDetail(true);
-            }}
-            onDevClick={() => setShowProjectCompletion(true)}
-          />
-        ) : (
-          <p className="scope-strip scope-strip--loading msg msg--muted">
-            A carregar estado do escopo…
-          </p>
-        ))}
-
-      <h2 className="section-kanban-title">Tarefas</h2>
-
-      <div className="pipeline-board">
-        {columns.map((column) => {
-          const colTasks = tasks.filter((task) => getKanbanColumn(task) === column.key);
-          return (
-            <section
-              key={column.key}
-              className={`pipeline-column${
-                column.key === "human_approval" ? " pipeline-column--human-approval" : ""
-              }`}
-            >
-              <div className="pipeline-column__head">
-                <span className="pipeline-column__title">
-                  {column.icon} {column.title}
-                </span>
-                <span className="pipeline-column__count">{colTasks.length}</span>
-              </div>
-              {colTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onOpenDetail={setDetailTaskId}
-                  onHumanApprove={handleHumanApprove}
-                  onRetry={handleRetryTask}
-                  canApprove={caps.canWrite || canExecuteProject}
-                  canExecute={canExecuteProject}
-                  pullRequest={taskPullRequests[task.id]}
-                  showGitUi={isClientGitConnected(selectedProjectMeta)}
-                />
-              ))}
-            </section>
-          );
-        })}
-      </div>
-
-      </div>
 
       {detailTaskId && selectedProject && (
         <TaskDetailModal
@@ -1109,11 +985,30 @@ export default function App({ onLogout }) {
       {showProjectSettings && selectedProject && (
         <ProjectSettingsModal
           projectSlug={selectedProject}
+          projectMeta={selectedProjectMeta}
+          canWrite={caps.canWrite}
+          runningCount={runningCount}
+          resetting={resetting}
           onClose={() => setShowProjectSettings(false)}
           onSaved={async () => {
             await loadProjects();
             await loadDashboardData();
           }}
+          onResetProject={
+            caps.canWrite ? () => handleResetProject() : undefined
+          }
+          onDeleteProject={
+            caps.canWrite ? () => handleDeleteProject() : undefined
+          }
+          onConnectGit={
+            caps.canWrite
+              ? () => {
+                  setShowProjectSettings(false);
+                  setShowConnectGitModal(true);
+                }
+              : undefined
+          }
+          onRefreshProjects={loadProjects}
         />
       )}
 
@@ -1167,31 +1062,7 @@ export default function App({ onLogout }) {
           onClose={() => setShowTasksDetail(false)}
         />
       )}
-      </main>
-
-      <div className={selectedProject ? "" : "page-disabled"}>
-      <RunnerSidebar
-        selectedProject={selectedProject}
-        projectMeta={selectedProjectMeta}
-        macroId={scopeState?.macroId}
-        autorun={autorun}
-        skipHumanApproval={skipHumanApproval}
-        canExecute={canExecuteProject}
-        projectCompleted={projectCompleted}
-        canWrite={caps.canWrite}
-        gitReady={isGitReadyForPlay(selectedProjectMeta)}
-        workspacePreparing={isWorkspacePreparing(selectedProjectMeta)}
-        showGitUi={isClientGitConnected(selectedProjectMeta)}
-        onAutorunChange={handleAutorunChange}
-        onSkipHumanChange={handleSkipHumanChange}
-        tasks={tasks}
-        detailTaskId={detailTaskId}
-        onDashboardRefresh={loadDashboardData}
-        onProjectsRefresh={loadProjects}
-        onProjectCompleted={handleProjectCompleted}
-        billingSummary={billingSummary}
-      />
-      </div>
-    </div>
+      </RunnerExecutionProvider>
+    </RailwayPublishProvider>
   );
 }

@@ -1,15 +1,43 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faEye,
+  faFolderOpen,
+  faRotateLeft,
+  faWandMagicSparkles,
+} from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
-import { AGENT_ROLE_KEYS } from "./agentRoleKeys.js";
+import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
+import AgentRolePicker from "./components/AgentRolePicker.jsx";
+import AgentConfigHelpPanel from "./AgentConfigHelpPanel.jsx";
+import ScopePreviewModal from "./ScopePreviewModal.jsx";
+import { getAgentRoleMeta } from "./lib/agentRoleMeta.js";
 
 /**
- * @param {{ projectSlug: string, onClose: () => void }} props
+ * @param {{
+ *   projectSlug: string | null,
+ *   projectName?: string | null,
+ * }} props
  */
-export default function AgentsPage({ projectSlug, onClose }) {
+export default function AgentsPage({ projectSlug, projectName = null }) {
   const [roleKey, setRoleKey] = useState("global");
   const [content, setContent] = useState("");
+  const [savedContent, setSavedContent] = useState("");
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpReady, setHelpReady] = useState(false);
+
+  const displayName =
+    projectName?.trim() || projectSlug?.trim() || "";
+  const roleMeta = getAgentRoleMeta(roleKey);
+  const isDirty = content !== savedContent;
+  const lineCount = useMemo(
+    () => (content ? content.split("\n").length : 0),
+    [content]
+  );
 
   const load = useCallback(async () => {
     if (!projectSlug) return;
@@ -19,14 +47,40 @@ export default function AgentsPage({ projectSlug, onClose }) {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const row = (data.overrides || []).find((r) => r.role_key === roleKey);
-    setContent(row?.content || "");
+    const next = row?.content || "";
+    setContent(next);
+    setSavedContent(next);
   }, [projectSlug, roleKey]);
 
   useEffect(() => {
+    setError(null);
+    setMessage(null);
     load().catch((e) => setError(e.message));
   }, [load]);
 
+  useEffect(() => {
+    if (!projectSlug) return;
+    let cancelled = false;
+    async function loadHelpStatus() {
+      try {
+        const res = await apiFetch(
+          `/api/projects/${encodeURIComponent(projectSlug)}/agents/help/status`
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled) setHelpReady(Boolean(data.ready));
+      } catch {
+        if (!cancelled) setHelpReady(false);
+      }
+    }
+    loadHelpStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectSlug]);
+
   async function handleSave() {
+    if (!projectSlug || saving) return;
+    setSaving(true);
     setError(null);
     setMessage(null);
     try {
@@ -41,24 +95,28 @@ export default function AgentsPage({ projectSlug, onClose }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || res.statusText);
       }
-      setMessage("Agente guardado.");
+      setSavedContent(content);
+      setMessage("Alterações guardadas.");
     } catch (e) {
       setError(e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleReset() {
-    if (!window.confirm("Repor agentes deste projeto a partir dos templates?")) {
+    if (!window.confirm("Restaurar agentes deste projeto a partir dos templates?")) {
       return;
     }
     setError(null);
+    setMessage(null);
     try {
       const res = await apiFetch(
         `/api/projects/${encodeURIComponent(projectSlug)}/agents/reset`,
         { method: "POST" }
       );
       if (!res.ok) throw new Error(await res.text());
-      setMessage("Agentes repostos.");
+      setMessage("Agentes repostos aos templates.");
       await load();
     } catch (e) {
       setError(e.message);
@@ -67,55 +125,143 @@ export default function AgentsPage({ projectSlug, onClose }) {
 
   if (!projectSlug) {
     return (
-      <div className="admin-page">
-        <p className="msg msg--muted">Selecione um projeto no dashboard.</p>
-        <button type="button" className="toolbar-btn" onClick={onClose}>
-          Voltar
-        </button>
-      </div>
+      <AppSubpagePanel
+        className="admin-page agents-page"
+        eyebrow="Pipeline"
+        title="Agentes"
+        subtitle="Selecione um projeto no menu superior."
+      >
+        <div className="agents-page__empty">
+          <p className="msg msg--muted">Nenhum projeto selecionado.</p>
+        </div>
+      </AppSubpagePanel>
     );
   }
 
   return (
-    <div className="admin-page">
-      <header className="admin-page__header">
-        <h1>Agentes — {projectSlug}</h1>
-        <button type="button" className="toolbar-btn" onClick={onClose}>
-          Voltar
-        </button>
-      </header>
-      {error && <p className="msg msg--error">{error}</p>}
-      {message && <p className="msg msg--ok">{message}</p>}
-      <div className="admin-page__toolbar">
-        <label>
-          Papel
-          <select value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-            {AGENT_ROLE_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="toolbar-btn" onClick={handleReset}>
-          Repor templates
-        </button>
-      </div>
-      <div className="admin-editor">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={24}
-          spellCheck={false}
-        />
-      </div>
-      <button
-        type="button"
-        className="toolbar-btn toolbar-btn--primary"
-        onClick={handleSave}
+    <>
+      <div
+        className={`agents-page-shell${helpOpen ? " agents-page-shell--with-help" : ""}`}
       >
-        Guardar
-      </button>
-    </div>
+        <AppSubpagePanel
+          className="admin-page agents-page agents-page-shell__panel"
+          eyebrow="Pipeline"
+          title={
+            <span className="agents-page__title-row">
+              <span className="agents-page__project-chip">
+                <FontAwesomeIcon icon={faFolderOpen} aria-hidden />
+                {displayName}
+              </span>
+              <span className="agents-page__title-text">Agentes</span>
+            </span>
+          }
+          subtitle={`Prompt do agente ${roleMeta.label} · personalização por projeto`}
+          headerActions={
+            <button
+              type="button"
+              className="toolbar-btn agents-page__reset-btn"
+              onClick={handleReset}
+              title="Restaurar todos os agentes deste projeto"
+            >
+              <FontAwesomeIcon icon={faRotateLeft} aria-hidden />
+              Restaurar templates
+            </button>
+          }
+        >
+          <div className="agents-page__layout">
+            <div className="agents-page__toolbar">
+            <AgentRolePicker value={roleKey} onChange={setRoleKey} />
+            <div className="agents-page__toolbar-actions">
+              <button
+                type="button"
+                className="agents-page__action-btn"
+                onClick={() => setPreviewOpen(true)}
+                disabled={!content.trim()}
+              >
+                <FontAwesomeIcon icon={faEye} aria-hidden />
+                Preview
+              </button>
+              <button
+                type="button"
+                className={`agents-page__help-btn${helpOpen ? " agents-page__help-btn--active" : ""}`}
+                onClick={() => setHelpOpen((open) => !open)}
+                disabled={!helpReady}
+                title={
+                  helpReady
+                    ? undefined
+                    : "Ajuda IA indisponível — configure bot e chave Admin"
+                }
+              >
+                <FontAwesomeIcon icon={faWandMagicSparkles} aria-hidden />
+                Preciso de ajuda com a configuração
+              </button>
+            </div>
+          </div>
+
+          {(error || message) && (
+            <div className="agents-page__alerts" role="status">
+              {error && <p className="msg msg--error">{error}</p>}
+              {message && <p className="msg msg--ok">{message}</p>}
+            </div>
+          )}
+
+          <div className="agents-page__editor-shell">
+            <div className="agents-page__editor-head">
+              <span className="agents-page__editor-label">
+                Prompt markdown · {roleMeta.label}
+              </span>
+              {isDirty ? (
+                <span className="agents-page__dirty-badge">Alterações por guardar</span>
+              ) : (
+                <span className="agents-page__saved-badge">Sincronizado</span>
+              )}
+            </div>
+            <textarea
+              className="agents-page__editor custom-scrollbar"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              spellCheck={false}
+              placeholder={`Instruções para o agente ${roleMeta.label}…`}
+            />
+          </div>
+
+          <footer className="agents-page__footer">
+            <div className="agents-page__footer-meta">
+              <span>{lineCount} linhas</span>
+              <span className="agents-page__footer-dot" aria-hidden />
+              <span>{content.length.toLocaleString("pt-PT")} caracteres</span>
+            </div>
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn--primary agents-page__save-btn"
+              onClick={handleSave}
+              disabled={saving || !isDirty}
+            >
+              {saving ? "A guardar…" : "Salvar alterações"}
+            </button>
+          </footer>
+          </div>
+        </AppSubpagePanel>
+
+        {helpOpen && (
+          <AgentConfigHelpPanel
+            onClose={() => setHelpOpen(false)}
+            projectSlug={projectSlug}
+            projectName={displayName}
+            roleKey={roleKey}
+            content={content}
+            onContentChange={setContent}
+          />
+        )}
+      </div>
+
+      <ScopePreviewModal
+        open={previewOpen}
+        content={content}
+        eyebrow="Preview"
+        title={`Prompt — ${roleMeta.label}`}
+        onClose={() => setPreviewOpen(false)}
+      />
+    </>
   );
 }

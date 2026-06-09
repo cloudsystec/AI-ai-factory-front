@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 
 /**
- * @param {{ onClose: () => void }} props
+ * Admin plataforma — bots e workers por tenant.
  */
-export default function AdminWorkersPage({ onClose }) {
+export default function AdminWorkersPage() {
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState("");
   const [slotsMax, setSlotsMax] = useState(1);
@@ -153,20 +154,12 @@ export default function AdminWorkersPage({ onClose }) {
   const selectedTenant = tenants.find((t) => t.id === tenantId);
 
   return (
-    <div className="users-page admin-workers-page">
-      <header className="users-page__header">
-        <div>
-          <h1>Bots / Workers</h1>
-          <p className="msg msg--muted">
-            Um container Docker por tenant; cada slot é um bot com email e API key
-            Cursor.
-          </p>
-        </div>
-        <button type="button" className="toolbar-btn" onClick={onClose}>
-          Voltar
-        </button>
-      </header>
-
+    <AppSubpagePanel
+      className="users-page admin-workers-page"
+      eyebrow="Plataforma"
+      title="Bots / Workers"
+      subtitle="Um container Docker por tenant; cada slot é um bot com email e API key Cursor."
+    >
       {error && <p className="msg msg--error">{error}</p>}
       {message && <p className="msg msg--ok">{message}</p>}
 
@@ -186,7 +179,7 @@ export default function AdminWorkersPage({ onClose }) {
       </label>
 
       {loading ? (
-        <p className="msg msg--muted">A carregar…</p>
+        <p className="msg msg--muted">Carregando…</p>
       ) : (
         <>
           {selectedTenant && (
@@ -297,7 +290,7 @@ export default function AdminWorkersPage({ onClose }) {
                           disabled={savingSlot === w.slot}
                           onClick={() => handleSaveSlot(w.slot)}
                         >
-                          {savingSlot === w.slot ? "…" : "Guardar"}
+                          {savingSlot === w.slot ? "…" : "Salvar"}
                         </button>
                       </td>
                     </tr>
@@ -310,7 +303,7 @@ export default function AdminWorkersPage({ onClose }) {
           <section className="users-panel users-panel--keys">
             <h2>Admin API key (tenant)</h2>
             <p className="msg msg--muted">
-              Usada para billing Cursor (Admin API). Não é mostrada após gravar.
+              Usada para billing Cursor (Admin API). Não é mostrada após salvar.
             </p>
             <form className="users-form-card" onSubmit={handleSaveAdminKey}>
               <label>
@@ -323,12 +316,12 @@ export default function AdminWorkersPage({ onClose }) {
                 />
               </label>
               <button type="submit" className="toolbar-btn">
-                Gravar ADMIN key
+                Salvar ADMIN key
               </button>
             </form>
           </section>
         </>
       )}
-    </div>
+    </AppSubpagePanel>
   );
 }

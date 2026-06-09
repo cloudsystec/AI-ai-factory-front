@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import AppModal from "./components/AppModal.jsx";
 import ProjectDeliveryActions from "./components/ProjectDeliveryActions.jsx";
 
 function formatDate(iso) {
@@ -32,81 +33,52 @@ export default function ProjectCompletionModal({
   taskCount = 0,
   onClose,
 }) {
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   const microCount = scope?.microCount ?? scope?.microsApproved ?? 0;
   const completedAt = scope?.projectCompletedAt;
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="completion"
+      panelClassName="modal-panel--completion"
+      eyebrow="Projeto finalizado"
+      title={projectName || projectSlug}
+      titleId="project-completion-title"
+      subtitle="Todas as micros e tasks foram executadas com sucesso."
+      subtitleClassName="project-completion-modal__subtitle"
+      onClose={onClose}
+      footer={
+        <button type="button" className="toolbar-btn" onClick={onClose}>
+          Fechar
+        </button>
+      }
     >
-      <div
-        className="modal-panel modal-panel--completion"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="project-completion-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">Projeto finalizado</p>
-            <h2 id="project-completion-title" className="modal-panel__title">
-              {projectName || projectSlug}
-            </h2>
-            <p className="project-completion-modal__subtitle">
-              Todas as micros e tasks foram executadas com sucesso.
-            </p>
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
+      <div className="modal-panel__body project-completion-modal__body">
+        <ul className="project-completion-modal__stats">
+          <li>
+            <strong>{microCount}</strong>
+            <span>micros concluídas</span>
+          </li>
+          <li>
+            <strong>{taskCount}</strong>
+            <span>tasks concluídas</span>
+          </li>
+          <li>
+            <strong>{formatDate(completedAt)}</strong>
+            <span>data de conclusão</span>
+          </li>
+        </ul>
+        <p className="project-completion-modal__note">
+          Os bots foram colocados em stop e a execução automática está desativada.
+          Este projeto não pode mais ser executado.
+        </p>
 
-        <div className="modal-panel__body project-completion-modal__body">
-          <ul className="project-completion-modal__stats">
-            <li>
-              <strong>{microCount}</strong>
-              <span>micros concluídas</span>
-            </li>
-            <li>
-              <strong>{taskCount}</strong>
-              <span>tasks concluídas</span>
-            </li>
-            <li>
-              <strong>{formatDate(completedAt)}</strong>
-              <span>data de conclusão</span>
-            </li>
-          </ul>
-          <p className="project-completion-modal__note">
-            Os bots foram colocados em stop e a execução automática está desactivada.
-            Este projeto não pode mais ser executado.
-          </p>
+        <ProjectDeliveryActions projectSlug={projectSlug} layout="modal" />
 
-          <ProjectDeliveryActions projectSlug={projectSlug} layout="modal" />
-
-          <p className="project-completion-modal__note project-completion-modal__note--muted">
-            Publicação privada via DevForLess no Railway. Não precisa de GitHub
-            ligado.
-          </p>
-        </div>
-
-        <footer className="modal-panel__footer">
-          <button type="button" className="toolbar-btn" onClick={onClose}>
-            Fechar
-          </button>
-        </footer>
+        <p className="project-completion-modal__note project-completion-modal__note--muted">
+          Publicação privada via DevForLess no Railway. Não precisa de GitHub
+          ligado.
+        </p>
       </div>
-    </div>
+    </AppModal>
   );
 }

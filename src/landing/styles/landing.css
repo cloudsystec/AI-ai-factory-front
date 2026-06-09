@@ -1,3 +1,4 @@
+@import "../../styles/tokens.css";
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
 
 @tailwind base;
@@ -5,14 +6,28 @@
 @tailwind utilities;
 
 .landing-root {
-  --bg-dark: #050505;
-  --brand-accent: #00d4aa;
-  --brand-dark: #0d0d1f;
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  --bg-dark: var(--bg);
+  --brand-accent: var(--brand-accent);
+  --brand-dark: var(--brand-dark);
+  font-family: var(--font-sans);
   background-color: var(--bg-dark);
-  color: #ffffff;
+  color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
+}
+
+.landing-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black, transparent);
 }
 
 .landing-root ::-webkit-scrollbar {
@@ -20,10 +35,10 @@
 }
 
 .landing-root .glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
 }
 
 .landing-root .text-glow {

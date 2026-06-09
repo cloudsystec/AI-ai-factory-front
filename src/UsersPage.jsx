@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "./api.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
+import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
+import AppModal from "./components/AppModal.jsx";
 
 const ROLE_LABELS = {
   executor: "Executor",
@@ -20,9 +22,9 @@ function usersApiBase(isPlatformAdmin, tenantId) {
 }
 
 /**
- * @param {{ onClose: () => void }} props
+ * Gestão de usuários da empresa (dentro do dashboard).
  */
-export default function UsersPage({ onClose }) {
+export default function UsersPage() {
   const caps = useCapabilities();
   const { isPlatformAdmin, session } = useSession();
 
@@ -131,7 +133,7 @@ export default function UsersPage({ onClose }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      setMessage("Utilizador criado com sucesso.");
+      setMessage("Usuário criado com sucesso.");
       setCreateEmail("");
       setCreatePassword("");
       setShowCreate(false);
@@ -208,7 +210,7 @@ export default function UsersPage({ onClose }) {
       const res = await apiFetch(`${base}/${user.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      setMessage("Utilizador removido.");
+      setMessage("Usuário removido.");
       if (editUser?.id === user.id) closeEdit();
       await loadUsers();
     } catch (err) {
@@ -248,37 +250,30 @@ export default function UsersPage({ onClose }) {
 
   if (!canOpenPage) {
     return (
-      <div className="users-page">
-        <p className="msg msg--error">Sem permissão para gerir utilizadores.</p>
-        <button type="button" className="toolbar-btn" onClick={onClose}>
-          Voltar
-        </button>
-      </div>
+      <AppSubpagePanel className="users-page" title="Usuários">
+        <p className="msg msg--error">Sem permissão para gerenciar usuários.</p>
+      </AppSubpagePanel>
     );
   }
 
   const selectedTenant = tenants.find((t) => t.id === tenantId);
 
   return (
-    <div className="users-page">
-      <header className="users-page__header">
-        <div>
-          <h1>Utilizadores</h1>
-          <p className="users-page__subtitle">
-            {isPlatformAdmin
-              ? "Gestão da equipa por empresa (admin plataforma)"
-              : "Equipa da sua empresa"}
-          </p>
-        </div>
-        <div className="users-page__header-actions">
-          <span className="users-page__quota" title="Quota do plano">
-            {usersUsed} / {usersMax}
-          </span>
-          <button type="button" className="toolbar-btn" onClick={onClose}>
-            Voltar
-          </button>
-        </div>
-      </header>
+    <AppSubpagePanel
+      className="users-page"
+      eyebrow="Equipe"
+      title="Usuários"
+      subtitle={
+        isPlatformAdmin
+          ? "Gerenciamento da equipe por empresa (admin plataforma)"
+          : "Equipe da sua empresa"
+      }
+      headerActions={
+        <span className="users-page__quota" title="Quota do plano">
+          {usersUsed} / {usersMax}
+        </span>
+      }
+    >
 
       {isPlatformAdmin && (
         <>
@@ -390,14 +385,14 @@ export default function UsersPage({ onClose }) {
       <div className="users-page__main">
         <section className="users-panel">
           <div className="users-panel__head">
-            <h2>Equipa</h2>
+            <h2>Equipe</h2>
             {canAddUser && (
               <button
                 type="button"
                 className="toolbar-btn toolbar-btn--primary"
                 onClick={() => setShowCreate((v) => !v)}
               >
-                {showCreate ? "Cancelar" : "+ Novo utilizador"}
+                {showCreate ? "Cancelar" : "+ Novo usuário"}
               </button>
             )}
           </div>
@@ -443,15 +438,15 @@ export default function UsersPage({ onClose }) {
                 type="submit"
                 className="toolbar-btn toolbar-btn--primary"
               >
-                Criar utilizador
+                Criar usuário
               </button>
             </form>
           )}
 
           {loading ? (
-            <p className="msg msg--muted">A carregar…</p>
+            <p className="msg msg--muted">Carregando…</p>
           ) : users.length === 0 ? (
-            <p className="msg msg--muted">Nenhum utilizador neste tenant.</p>
+            <p className="msg msg--muted">Nenhum usuário neste tenant.</p>
           ) : (
             <div className="users-table-wrap">
               <table className="users-table">
@@ -514,31 +509,17 @@ export default function UsersPage({ onClose }) {
       </div>
 
       {editUser && (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeEdit();
-          }}
+        <AppModal
+          variant="form"
+          panelClassName="users-modal"
+          eyebrow="Administração"
+          title="Editar usuário"
+          titleId="edit-user-title"
+          subtitle={editUser.email}
+          subtitleClassName="users-modal__email"
+          onClose={closeEdit}
         >
-          <div
-            className="users-modal"
-            role="dialog"
-            aria-labelledby="edit-user-title"
-          >
-            <header className="users-modal__header">
-              <h2 id="edit-user-title">Editar utilizador</h2>
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={closeEdit}
-                aria-label="Fechar"
-              >
-                ✕
-              </button>
-            </header>
-            <p className="users-modal__email">{editUser.email}</p>
-            <form onSubmit={handleSaveEdit}>
+          <form className="modal-panel__body users-modal__form" onSubmit={handleSaveEdit}>
               <label>
                 Papel
                 {!isPlatformAdmin && editUser.role === "auditor" ? (
@@ -586,13 +567,12 @@ export default function UsersPage({ onClose }) {
                   type="submit"
                   className="toolbar-btn toolbar-btn--primary"
                 >
-                  Guardar
+                  Salvar
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </AppModal>
       )}
-    </div>
+    </AppSubpagePanel>
   );
 }

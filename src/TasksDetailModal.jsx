@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import AppModal from "./components/AppModal.jsx";
 
 const TASK_STATUS_LABELS = {
   todo: "A fazer",
@@ -32,50 +33,21 @@ function displayStatus(task) {
  * }} props
  */
 export default function TasksDetailModal({ openMicro, detail, onClose }) {
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   const tasks = Array.isArray(detail?.tasks) ? detail.tasks : [];
   const eligibleCount = detail?.eligibleCount ?? 0;
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="task"
+      panelClassName="modal-panel--wide tasks-detail-modal"
+      eyebrow="Micro atual · tasks"
+      title={openMicro?.title || openMicro?.id || "Tasks da onda"}
+      titleId="tasks-detail-title"
+      subtitle={openMicro?.id || undefined}
+      subtitleClassName="tasks-detail-modal__micro-id msg msg--muted"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel modal-panel--wide tasks-detail-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tasks-detail-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">Micro actual · tasks</p>
-            <h2 id="tasks-detail-title" className="modal-panel__title">
-              {openMicro?.title || openMicro?.id || "Tasks da onda"}
-            </h2>
-            {openMicro?.id && (
-              <p className="tasks-detail-modal__micro-id msg msg--muted">
-                {openMicro.id}
-              </p>
-            )}
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-
-        <div className="modal-panel__body tasks-detail-modal__body">
+      <div className="modal-panel__body tasks-detail-modal__body">
           {!openMicro?.id ? (
             <p className="msg msg--muted">Nenhum micro aberto neste projecto.</p>
           ) : tasks.length === 0 ? (
@@ -190,7 +162,6 @@ export default function TasksDetailModal({ openMicro, detail, onClose }) {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

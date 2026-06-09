@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import AppModal from "./components/AppModal.jsx";
 
 function scopeStepIcon(state) {
   if (state === "done") return "✓";
@@ -10,14 +11,6 @@ function scopeStepIcon(state) {
  * @param {{ scope: object, onClose: () => void }} props
  */
 export default function ScopeDetailModal({ scope, onClose }) {
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   const waveStats = scope.waveTaskStats ?? {
     total: 0,
     pendingTl: 0,
@@ -26,36 +19,17 @@ export default function ScopeDetailModal({ scope, onClose }) {
   const paths = scope.paths ?? { macro: "", micro: "", backlog: "" };
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <AppModal
+      variant="scope"
+      panelClassName="modal-panel--scope-detail"
+      eyebrow="Planejamento"
+      title={scope.current?.label ?? "Escopo"}
+      titleId="scope-detail-title"
+      subtitle={scope.current?.hint}
+      subtitleClassName="scope-detail-modal__hint"
+      onClose={onClose}
     >
-      <div
-        className="modal-panel modal-panel--scope-detail"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="scope-detail-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-panel__header">
-          <div>
-            <p className="modal-panel__eyebrow">Planeamento</p>
-            <h2 id="scope-detail-title" className="modal-panel__title">
-              {scope.current?.label ?? "Escopo"}
-            </h2>
-            {scope.current?.hint && (
-              <p className="scope-detail-modal__hint">{scope.current.hint}</p>
-            )}
-          </div>
-          <button type="button" className="modal-panel__close" onClick={onClose}>
-            Fechar
-          </button>
-        </header>
-
-        <div className="modal-panel__body">
+      <div className="modal-panel__body">
           <div className="scope-strip__steps scope-strip__steps--modal" role="list">
             {scope.scopeSteps?.map((step, i) => (
               <React.Fragment key={step.key}>
@@ -145,7 +119,6 @@ export default function ScopeDetailModal({ scope, onClose }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

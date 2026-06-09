@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import AppModal from "./components/AppModal.jsx";
 import MacroHelpTrigger from "./MacroHelpTrigger.jsx";
-import MacroHelpDrawer from "./MacroHelpDrawer.jsx";
+import MacroHelpPanel from "./MacroHelpPanel.jsx";
 import ScopePreviewModal from "./ScopePreviewModal.jsx";
 
 /**
@@ -55,14 +56,6 @@ export default function MacroDetailModal({
       cancelled = true;
     };
   }, [editable, canWrite]);
-
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape" && !saving) onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, saving]);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,59 +131,51 @@ export default function MacroDetailModal({
 
   return (
     <>
-      <div
-        className="modal-overlay"
-        role="presentation"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !saving) onClose();
-        }}
+      <AppModal
+        variant="macro"
+        panelClassName="modal-panel--wide macro-detail-modal"
+        eyebrow="Escopo macro"
+        title={macroId || projectSlug}
+        titleId="macro-detail-title"
+        subtitle={
+          lockedHint ||
+          (editable && canWrite
+            ? "Edite o escopo antes de gerar microescopos (job scope no CLI)."
+            : undefined)
+        }
+        subtitleClassName="macro-detail-modal__hint msg msg--muted"
+        onClose={onClose}
+        closeDisabled={saving}
+        disableOverlayClose={saving}
+        closeOnEscape={!drawerOpen && !previewOpen}
+        closeOnOverlayClick={!drawerOpen}
+        companionOpen={drawerOpen}
+        companion={
+          showMacroHelp && drawerOpen ? (
+            <MacroHelpPanel
+              onClose={() => setDrawerOpen(false)}
+              scopeMd={text}
+              onScopeChange={setText}
+              projectName={macroId || projectSlug}
+              projectSlug={projectSlug}
+            />
+          ) : null
+        }
+        headerActions={
+          !loading && text.trim() ? (
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn--link"
+              onClick={() => setPreviewOpen(true)}
+            >
+              Preview
+            </button>
+          ) : null
+        }
       >
-        <div
-          className="modal-panel modal-panel--wide macro-detail-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="macro-detail-title"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <header className="modal-panel__header">
-            <div>
-              <p className="modal-panel__eyebrow">Escopo macro</p>
-              <h2 id="macro-detail-title" className="modal-panel__title">
-                {macroId || projectSlug}
-              </h2>
-              {lockedHint && (
-                <p className="macro-detail-modal__hint msg msg--muted">{lockedHint}</p>
-              )}
-              {editable && canWrite && (
-                <p className="macro-detail-modal__hint msg msg--muted">
-                  Edite o escopo antes de gerar microescopos (job scope no CLI).
-                </p>
-              )}
-            </div>
-            <div className="macro-detail-modal__header-actions">
-              {!loading && text.trim() && (
-                <button
-                  type="button"
-                  className="toolbar-btn toolbar-btn--link"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  Preview
-                </button>
-              )}
-              <button
-                type="button"
-                className="modal-panel__close"
-                onClick={onClose}
-                disabled={saving}
-              >
-                Fechar
-              </button>
-            </div>
-          </header>
-
-          <form className="modal-panel__body macro-detail-modal__body" onSubmit={handleSave}>
+        <form className="modal-panel__body macro-detail-modal__body" onSubmit={handleSave}>
             {loading ? (
-              <p className="msg msg--muted">A carregar escopo…</p>
+              <p className="msg msg--muted">Carregando escopo…</p>
             ) : editable && canWrite ? (
               <label className="form-field macro-detail-modal__field">
                 <div className="form-field__label-row">
@@ -198,7 +183,7 @@ export default function MacroDetailModal({
                   {showMacroHelp && (
                     <div className="form-field__label-actions">
                       <MacroHelpTrigger
-                        onClick={() => setDrawerOpen(true)}
+                        onClick={() => setDrawerOpen((open) => !open)}
                         disabled={saving}
                       />
                     </div>
@@ -229,24 +214,12 @@ export default function MacroDetailModal({
                   className="toolbar-btn toolbar-btn--primary"
                   disabled={saving || loading || !text.trim()}
                 >
-                  {saving ? "A guardar…" : "Guardar escopo"}
+                  {saving ? "Salvando…" : "Salvar escopo"}
                 </button>
               )}
             </div>
           </form>
-        </div>
-      </div>
-
-      {showMacroHelp && (
-        <MacroHelpDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          scopeMd={text}
-          onScopeChange={setText}
-          projectName={macroId || projectSlug}
-          projectSlug={projectSlug}
-        />
-      )}
+      </AppModal>
 
       <ScopePreviewModal
         open={previewOpen}

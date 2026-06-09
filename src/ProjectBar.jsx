@@ -4,7 +4,6 @@ import {
   isWorkspacePreparing,
   canConnectClientGit,
 } from "./lib/projectGit.js";
-import ProjectDeliveryActions from "./components/ProjectDeliveryActions.jsx";
 import GitDisconnectPanel from "./components/GitDisconnectPanel.jsx";
 import { useGitDisconnect } from "./hooks/useGitDisconnect.js";
 
@@ -268,9 +267,6 @@ export default function ProjectBar({
             </div>
           )}
 
-          {projectCompleted && selectedProject && (
-            <ProjectDeliveryActions projectSlug={selectedProject} layout="bar" />
-          )}
         </div>
       )}
     </section>

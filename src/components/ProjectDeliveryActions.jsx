@@ -6,20 +6,21 @@ import {
   railwayPublishStatusLabel,
   isPublishInProgress,
 } from "../lib/railwayPublish.js";
-import { useRailwayPublish } from "../hooks/useRailwayPublish.js";
+import { useRailwayPublishContext } from "../context/RailwayPublishContext.jsx";
 
 /**
- * Acções de entrega para projecto concluído (ZIP + publicação Railway).
  * @param {{
  *   projectSlug: string,
- *   layout?: "bar" | "modal",
+ *   layout?: "bar" | "modal" | "timeline",
  *   showStatus?: boolean,
+ *   showActions?: boolean,
  * }} props
  */
 export default function ProjectDeliveryActions({
   projectSlug,
   layout = "bar",
   showStatus = true,
+  showActions = true,
 }) {
   const {
     publishStatus,
@@ -27,9 +28,10 @@ export default function ProjectDeliveryActions({
     publishLoading,
     isPublishing,
     handlePublish,
-  } = useRailwayPublish(projectSlug);
+  } = useRailwayPublishContext();
 
   const isBar = layout === "bar";
+  const isTimeline = layout === "timeline";
   const tone = publishUiTone(publishStatus);
   const inProgress =
     publishLoading || isPublishing || isPublishInProgress(publishStatus);
@@ -58,52 +60,54 @@ export default function ProjectDeliveryActions({
     "Estamos a preparar, publicar e verificar a aplicação. " +
       "Isto pode levar vários minutos — aguarde.";
 
+  const rootClass = isTimeline
+    ? "project-timeline__delivery-root"
+    : isBar
+      ? "project-bar__delivery"
+      : "project-completion-modal__delivery";
+
+  const actionsClass = isTimeline
+    ? "project-timeline__delivery-actions"
+    : isBar
+      ? "project-bar__delivery-actions"
+      : "project-completion-modal__delivery-actions";
+
   return (
-    <div
-      className={
-        isBar
-          ? "project-bar__delivery"
-          : "project-completion-modal__delivery"
-      }
-    >
-      <div
-        className={
-          isBar
-            ? "project-bar__delivery-actions"
-            : "project-completion-modal__delivery-actions"
-        }
-      >
-        <button
-          type="button"
-          className={
-            isBar
-              ? "toolbar-btn project-bar__delivery-btn"
-              : "toolbar-btn"
-          }
-          onClick={() =>
-            downloadProjectCode(projectSlug).catch((e) => alert(e.message))
-          }
-        >
-          Baixar código (ZIP)
-        </button>
-        <button
-          type="button"
-          className={
-            isBar
-              ? "toolbar-btn toolbar-btn--primary project-bar__delivery-btn"
-              : "toolbar-btn toolbar-btn--primary"
-          }
-          disabled={buttonDisabled}
-          onClick={() => handlePublish().catch(() => {})}
-        >
-          {publishButtonLabel(publishStatus, { loading: publishLoading })}
-        </button>
-      </div>
+    <div className={rootClass}>
+      {showActions && (
+        <div className={actionsClass}>
+          <button
+            type="button"
+            className={
+              isBar
+                ? "toolbar-btn project-bar__delivery-btn"
+                : "toolbar-btn"
+            }
+            onClick={() =>
+              downloadProjectCode(projectSlug).catch((e) => alert(e.message))
+            }
+          >
+            {isTimeline ? "Baixar ZIP" : "Baixar código (ZIP)"}
+          </button>
+          <button
+            type="button"
+            className={
+              isBar
+                ? "toolbar-btn toolbar-btn--primary project-bar__delivery-btn"
+                : "toolbar-btn toolbar-btn--primary"
+            }
+            disabled={buttonDisabled}
+            onClick={() => handlePublish().catch(() => {})}
+          >
+            {publishButtonLabel(publishStatus, { loading: publishLoading })}
+          </button>
+        </div>
+      )}
 
       {showBanner && (
         <div
           className={`publish-status publish-status--${tone}${
-            isBar ? " publish-status--compact" : ""
+            isBar || isTimeline ? " publish-status--compact" : ""
           }`}
           role="status"
           aria-live="polite"
