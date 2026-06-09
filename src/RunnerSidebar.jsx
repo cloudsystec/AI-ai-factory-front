@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "./api.js";
 
-import ExecutionDiagPanel from "./components/ExecutionDiagPanel.jsx";
-
 import {
   executionGitHint,
   summarizeExecutionResponse,
@@ -14,10 +12,6 @@ import { useJobRunner } from "./useJobRunner.js";
 import { useSocket } from "./useSocket.jsx";
 
 import WorkerRobots from "./WorkerRobots.jsx";
-
-const MAX_DIAG_ENTRIES = 14;
-
-
 
 const ANSI_COLORS = {
 
@@ -299,7 +293,7 @@ export default function RunnerSidebar({
 
 }) {
 
-  const { subscribe, connected: wsConnected } = useSocket();
+  const { subscribe } = useSocket();
 
   const {
 
@@ -335,73 +329,24 @@ export default function RunnerSidebar({
 
   const [selectedSlot, setSelectedSlot] = useState(null);
 
-  const [diagLog, setDiagLog] = useState([]);
-
-  const [liveGitMeta, setLiveGitMeta] = useState(null);
-
-  const effectiveGitMeta = useMemo(() => {
-    if (!projectMeta && !liveGitMeta) return null;
-    return { ...(projectMeta || {}), ...(liveGitMeta || {}) };
-  }, [projectMeta, liveGitMeta]);
-
-  const applyGitFromPayload = useCallback((data) => {
-    if (!data || typeof data !== "object") return;
-    if (
-      data.gitStatus == null &&
-      data.gitLastError == null &&
-      data.repoMode == null
-    ) {
-      return;
-    }
-    setLiveGitMeta((prev) => ({
-      ...(prev || {}),
-      ...(data.gitStatus != null ? { gitStatus: data.gitStatus } : {}),
-      ...(data.gitLastError != null ? { gitLastError: data.gitLastError } : {}),
-      ...(data.repoMode != null ? { repoMode: data.repoMode } : {}),
-    }));
-  }, []);
-
-  const pushDiag = useCallback((entry) => {
-    const row = { at: new Date(), ...entry };
-    if (import.meta.env.DEV) {
-      console.warn("[exec-diag]", row.label, row.method, row.path, row.status, row.message);
-    }
-    setDiagLog((prev) => [row, ...prev].slice(0, MAX_DIAG_ENTRIES));
-  }, []);
-
   const apiCall = useCallback(
     async (label, path, init = {}) => {
-      const method = String(init.method || "GET").toUpperCase();
-      pushDiag({ label, method, path, message: "…" });
       try {
         const res = await apiFetch(path, init);
         const data = await res.json().catch(() => ({}));
         const summary = summarizeExecutionResponse(res, data);
-        applyGitFromPayload(data);
-        pushDiag({
-          label,
-          method,
-          path,
-          status: res.status,
-          ok: summary.ok,
-          message: summary.message,
-          extra: summary.extra,
-          phase: summary.phase,
-          code: summary.code,
-        });
+        if (import.meta.env.DEV) {
+          console.warn("[exec]", label, init.method || "GET", path, res.status, summary.message);
+        }
         return { res, data, summary };
       } catch (e) {
-        pushDiag({
-          label,
-          method,
-          path,
-          ok: false,
-          message: e.message || String(e),
-        });
+        if (import.meta.env.DEV) {
+          console.warn("[exec]", label, init.method || "GET", path, e.message);
+        }
         throw e;
       }
     },
-    [pushDiag, applyGitFromPayload]
+    [],
   );
 
   const slotsMax = billingSummary?.agentSlotsMax ?? billingSummary?.slotsMax ?? 1;
@@ -469,7 +414,6 @@ export default function RunnerSidebar({
       if (!res.ok) return;
 
       applyExecutionPayload(data);
-      applyGitFromPayload(data);
 
     } catch {
 
@@ -477,7 +421,7 @@ export default function RunnerSidebar({
 
     }
 
-  }, [selectedProject, applyExecutionPayload, applyGitFromPayload, apiCall]);
+  }, [selectedProject, applyExecutionPayload, apiCall]);
 
 
 
@@ -504,10 +448,6 @@ export default function RunnerSidebar({
   useEffect(() => {
 
     setSelectedSlot(null);
-
-    setDiagLog([]);
-
-    setLiveGitMeta(null);
 
   }, [selectedProject]);
 
@@ -972,14 +912,6 @@ export default function RunnerSidebar({
         {(error || execError) && (
           <p className="runner-sidebar__error">{error || execError}</p>
         )}
-
-        <ExecutionDiagPanel
-          projectMeta={effectiveGitMeta}
-          entries={diagLog}
-          wsConnected={wsConnected}
-          activeSlots={activeSlots}
-          execError={execError}
-        />
 
         <section className="runner-sidebar__log-wrap runner-sidebar__log-wrap--fill">
 

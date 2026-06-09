@@ -3634,6 +3634,25 @@ select:-webkit-autofill {
   border-radius: 4px;
   padding: 2px 7px;
 }
+.project-bar__icon-btn--git-off {
+  color: #e67e22;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border: 1px solid #e67e22;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.git-disconnect-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-bar__git-disconnect {
+  margin-top: 0;
+  width: 100%;
+  font-size: 0.85rem;
+}
 .project-bar__icon-btn--delete {
   color: #95a5a6;
   font-size: 0.85rem;
@@ -3721,6 +3740,103 @@ select:-webkit-autofill {
 
 .project-bar__git-link:hover {
   text-decoration: underline;
+}
+
+.project-bar__delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.project-bar__delivery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-bar__delivery-btn {
+  flex: 1 1 auto;
+  min-width: 8rem;
+}
+
+.project-completion-modal__delivery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.publish-status {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  font-size: 0.9rem;
+}
+
+.publish-status--compact {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+
+.publish-status--idle {
+  border-color: var(--border);
+}
+
+.publish-status--waiting {
+  border-color: #d4a017;
+  background: rgba(241, 196, 15, 0.08);
+}
+
+.publish-status--progress {
+  border-color: var(--accent);
+  background: rgba(52, 152, 219, 0.08);
+}
+
+.publish-status--success {
+  border-color: #27ae60;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.publish-status--error {
+  border-color: #e74c3c;
+  background: rgba(231, 76, 60, 0.08);
+}
+
+.publish-status__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.publish-status__hint,
+.publish-status__meta {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.publish-status__link {
+  margin: 8px 0 0;
+}
+
+.publish-status__link a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.publish-status__error {
+  margin: 8px 0 0;
+  color: #e74c3c;
+  line-height: 1.45;
+}
+
+.publish-status__blockers {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
 }
 
 .billing-label {

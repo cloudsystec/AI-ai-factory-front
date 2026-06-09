@@ -33,6 +33,16 @@ export function isWorkspacePreparing(meta) {
 /**
  * @param {object|null|undefined} meta
  */
+export function canDisconnectClientGit(meta) {
+  if (!meta || typeof meta !== "object") return false;
+  if (!isClientGitConnected(meta)) return false;
+  if (isWorkspacePreparing(meta)) return false;
+  return meta.gitStatus === "ready";
+}
+
+/**
+ * @param {object|null|undefined} meta
+ */
 export function canConnectClientGit(meta) {
   if (!meta || typeof meta !== "object") return false;
   if (meta.status === "completed") return false;

@@ -964,6 +964,7 @@ export default function App({ onLogout }) {
               ? () => setShowConnectGitModal(true)
               : undefined
           }
+          onRefreshProjects={loadProjects}
           onResetProject={
             caps.canWrite && selectedProject
               ? () => handleResetProject()

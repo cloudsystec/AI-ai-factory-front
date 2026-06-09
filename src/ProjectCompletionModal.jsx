@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { downloadProjectCode } from "./lib/downloadProjectCode.js";
+import ProjectDeliveryActions from "./components/ProjectDeliveryActions.jsx";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -42,10 +42,6 @@ export default function ProjectCompletionModal({
 
   const microCount = scope?.microCount ?? scope?.microsApproved ?? 0;
   const completedAt = scope?.projectCompletedAt;
-
-  async function handleDownload() {
-    await downloadProjectCode(projectSlug);
-  }
 
   return (
     <div
@@ -96,17 +92,17 @@ export default function ProjectCompletionModal({
             Os bots foram colocados em stop e a execução automática está desactivada.
             Este projeto não pode mais ser executado.
           </p>
+
+          <ProjectDeliveryActions projectSlug={projectSlug} layout="modal" />
+
+          <p className="project-completion-modal__note project-completion-modal__note--muted">
+            Publicação privada via DevForLess no Railway. Não precisa de GitHub
+            ligado.
+          </p>
         </div>
 
         <footer className="modal-panel__footer">
-          <button
-            type="button"
-            className="toolbar-btn"
-            onClick={() => handleDownload().catch((e) => alert(e.message))}
-          >
-            Baixar código (ZIP)
-          </button>
-          <button type="button" className="toolbar-btn toolbar-btn--primary" onClick={onClose}>
+          <button type="button" className="toolbar-btn" onClick={onClose}>
             Fechar
           </button>
         </footer>

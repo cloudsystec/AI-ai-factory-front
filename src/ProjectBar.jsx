@@ -4,7 +4,9 @@ import {
   isWorkspacePreparing,
   canConnectClientGit,
 } from "./lib/projectGit.js";
-import { downloadProjectCode } from "./lib/downloadProjectCode.js";
+import ProjectDeliveryActions from "./components/ProjectDeliveryActions.jsx";
+import GitDisconnectPanel from "./components/GitDisconnectPanel.jsx";
+import { useGitDisconnect } from "./hooks/useGitDisconnect.js";
 
 /**
  * @param {string|object} p
@@ -52,6 +54,7 @@ function githubBranchUrl(repoFullName, branch) {
  *   onResetProject?: () => void,
  *   onDeleteProject?: () => void,
  *   onConnectGit?: () => void,
+ *   onRefreshProjects?: () => void | Promise<void>,
  *   resetting?: boolean,
  *   runningCount?: number,
  *   projectCompleted?: boolean,
@@ -68,25 +71,30 @@ export default function ProjectBar({
   onResetProject,
   onDeleteProject,
   onConnectGit,
+  onRefreshProjects,
   resetting = false,
   runningCount = 0,
   projectCompleted = false,
 }) {
+  const gitDisconnect = useGitDisconnect(selectedProject, onRefreshProjects);
   const showGitUi = isClientGitConnected(selectedProjectMeta);
   const preparing = isWorkspacePreparing(selectedProjectMeta);
   const showConnectGit =
     canWrite && onConnectGit && canConnectClientGit(selectedProjectMeta);
+  const disconnectActive =
+    gitDisconnect.busy ||
+    gitDisconnect.loading ||
+    ["provisioning", "failed", "ready"].includes(
+      gitDisconnect.status?.phase || ""
+    );
+  const showBody =
+    preparing || showGitUi || projectCompleted || disconnectActive;
   const repo = showGitUi ? selectedProjectMeta?.repoFullName || "" : "";
   const defaultBr = selectedProjectMeta?.defaultBranch || "main";
   const tlBr = selectedProjectMeta?.techLeadBranch || "tech-lead";
   const repoUrl = githubRepoUrl(repo);
   const defaultUrl = githubBranchUrl(repo, defaultBr);
   const tlUrl = githubBranchUrl(repo, tlBr);
-
-  async function handleDownload() {
-    if (!selectedProject || !projectCompleted) return;
-    await downloadProjectCode(selectedProject);
-  }
 
   return (
     <section className="project-bar" aria-label="Projeto">
@@ -150,6 +158,19 @@ export default function ProjectBar({
                 + Git
               </button>
             )}
+            {canWrite && selectedProject && showGitUi && (
+              <GitDisconnectPanel
+                projectMeta={selectedProjectMeta}
+                status={gitDisconnect.status}
+                error={gitDisconnect.error}
+                loading={gitDisconnect.loading}
+                busy={gitDisconnect.busy}
+                runningCount={runningCount}
+                onDisconnect={gitDisconnect.handleDisconnect}
+                showButton
+                compact
+              />
+            )}
           </div>
         )}
       </div>
@@ -174,12 +195,25 @@ export default function ProjectBar({
         })}
       </select>
 
-      {selectedProject && (preparing || showGitUi || projectCompleted) && (
+      {selectedProject && showBody && (
         <div className="project-bar__body">
-          {preparing && (
+          {preparing && !disconnectActive && (
             <p className="project-bar__git-empty msg msg--muted">
               A preparar workspace…
             </p>
+          )}
+
+          {disconnectActive && (
+            <GitDisconnectPanel
+              projectMeta={selectedProjectMeta}
+              status={gitDisconnect.status}
+              error={gitDisconnect.error}
+              loading={gitDisconnect.loading}
+              busy={gitDisconnect.busy}
+              runningCount={runningCount}
+              onDisconnect={gitDisconnect.handleDisconnect}
+              showButton={showGitUi}
+            />
           )}
 
           {showGitUi && (
@@ -234,14 +268,8 @@ export default function ProjectBar({
             </div>
           )}
 
-          {projectCompleted && (
-            <button
-              type="button"
-              className="toolbar-btn toolbar-btn--primary project-bar__download"
-              onClick={() => handleDownload().catch((e) => alert(e.message))}
-            >
-              Baixar código (ZIP)
-            </button>
+          {projectCompleted && selectedProject && (
+            <ProjectDeliveryActions projectSlug={selectedProject} layout="bar" />
           )}
         </div>
       )}
