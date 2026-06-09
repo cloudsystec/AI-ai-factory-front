@@ -5,23 +5,58 @@ import AppModal from "./components/AppModal.jsx";
 import MacroHelpTrigger from "./MacroHelpTrigger.jsx";
 import MacroHelpPanel from "./MacroHelpPanel.jsx";
 import ScopePreviewModal from "./ScopePreviewModal.jsx";
+import { TUTORIAL_PROJECT_NAME, TUTORIAL_PROJECT_SLUG } from "./tutorial/mockData.js";
+import { TUTORIAL_SAMPLE_SCOPE } from "./tutorial/mockMacroHelpResponses.js";
 
 /**
- * @param {{ onClose: () => void, onCreated: (slug: string) => void }} props
+ * @param {{
+ *   onClose: () => void,
+ *   onCreated: (slug: string) => void,
+ *   tutorialMode?: boolean,
+ *   onTutorialSubmit?: () => void,
+ *   onMacroHelpInteraction?: () => void,
+ *   onTutorialDrawerOpen?: () => void,
+ *   initialScope?: string,
+ *   onScopeDraftChange?: (scope: string) => void,
+ *   openMacroHelpOnMount?: boolean,
+ *   submitTutorialTarget?: string,
+ *   macroHelpTriggerTutorialTarget?: string,
+ *   macroHelpInputTutorialTarget?: string,
+ *   macroHelpSendTutorialTarget?: string,
+ *   tutorialAutoTypeSignal?: number,
+ *   onTutorialAutoTypeComplete?: () => void,
+ * }} props
  */
-export default function NewProjectModal({ onClose, onCreated }) {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [scope, setScope] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
+export default function NewProjectModal({
+  onClose,
+  onCreated,
+  tutorialMode = false,
+  onTutorialSubmit,
+  onMacroHelpInteraction,
+  onTutorialDrawerOpen,
+  initialScope = "",
+  onScopeDraftChange,
+  openMacroHelpOnMount = false,
+  submitTutorialTarget,
+  macroHelpTriggerTutorialTarget,
+  macroHelpInputTutorialTarget,
+  macroHelpSendTutorialTarget,
+  tutorialAutoTypeSignal = 0,
+  onTutorialAutoTypeComplete,
+}) {
+  const [name, setName] = useState(tutorialMode ? TUTORIAL_PROJECT_NAME : "");
+  const [slug, setSlug] = useState(tutorialMode ? TUTORIAL_PROJECT_SLUG : "");
+  const [scope, setScope] = useState(tutorialMode ? initialScope || "" : "");
+  const [slugTouched, setSlugTouched] = useState(tutorialMode);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [macroHelpReady, setMacroHelpReady] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [macroHelpReady, setMacroHelpReady] = useState(tutorialMode);
+  const [statusLoading, setStatusLoading] = useState(!tutorialMode);
+  const [drawerOpen, setDrawerOpen] = useState(tutorialMode && openMacroHelpOnMount);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
+    if (tutorialMode) return undefined;
     let cancelled = false;
     async function loadStatus() {
       setStatusLoading(true);
@@ -41,11 +76,32 @@ export default function NewProjectModal({ onClose, onCreated }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tutorialMode]);
+
+  useEffect(() => {
+    if (tutorialMode && openMacroHelpOnMount) {
+      setDrawerOpen(true);
+    }
+  }, [tutorialMode, openMacroHelpOnMount]);
+
+  function handleScopeChange(value) {
+    setScope(value);
+    onScopeDraftChange?.(value);
+  }
 
   function handleNameChange(value) {
     setName(value);
     if (!slugTouched) setSlug(suggestSlugFromName(value));
+  }
+
+  function handleMacroHelpToggle() {
+    setDrawerOpen((open) => {
+      const next = !open;
+      if (tutorialMode && next) {
+        onTutorialDrawerOpen?.();
+      }
+      return next;
+    });
   }
 
   async function handleSubmit(e) {
@@ -53,6 +109,13 @@ export default function NewProjectModal({ onClose, onCreated }) {
     setError(null);
     setSubmitting(true);
     try {
+      if (tutorialMode) {
+        const finalScope = scope.trim() || TUTORIAL_SAMPLE_SCOPE;
+        handleScopeChange(finalScope);
+        onTutorialSubmit?.();
+        onClose();
+        return;
+      }
       const response = await apiFetch("/api/projects", {
         method: "POST",
         body: JSON.stringify({
@@ -84,19 +147,26 @@ export default function NewProjectModal({ onClose, onCreated }) {
         title="Criar projeto"
         titleId="new-project-title"
         onClose={onClose}
-        closeDisabled={submitting}
-        disableOverlayClose={submitting}
-        closeOnEscape={!drawerOpen && !previewOpen}
-        closeOnOverlayClick={!drawerOpen}
+        closeDisabled={submitting || tutorialMode}
+        disableOverlayClose={submitting || tutorialMode}
+        closeOnEscape={!drawerOpen && !previewOpen && !tutorialMode}
+        closeOnOverlayClick={!drawerOpen && !tutorialMode}
         companionOpen={drawerOpen}
+        panelDataTutorial={tutorialMode ? "new-project" : undefined}
         companion={
           drawerOpen ? (
             <MacroHelpPanel
+              tutorialMode={tutorialMode}
               onClose={() => setDrawerOpen(false)}
               scopeMd={scope}
-              onScopeChange={setScope}
+              onScopeChange={handleScopeChange}
               projectName={name}
               draftSlug={slug}
+              tutorialInputTarget={macroHelpInputTutorialTarget}
+              tutorialSendTarget={macroHelpSendTutorialTarget}
+              tutorialAutoTypeSignal={tutorialAutoTypeSignal}
+              onTutorialAutoTypeComplete={onTutorialAutoTypeComplete}
+              onTutorialMessageSent={onMacroHelpInteraction}
             />
           ) : null
         }
@@ -110,6 +180,12 @@ export default function NewProjectModal({ onClose, onCreated }) {
                 criar projetos. Contacte o administrador da plataforma.
               </p>
             ) : null}
+
+            {tutorialMode && (
+              <p className="msg msg--muted">
+                Exemplo ilustrativo — pode experimentar à vontade.
+              </p>
+            )}
 
             {error && <p className="msg msg--error">{error}</p>}
 
@@ -151,30 +227,35 @@ export default function NewProjectModal({ onClose, onCreated }) {
                     >
                       Preview
                     </button>
-                    <MacroHelpTrigger
-                      onClick={() => setDrawerOpen((open) => !open)}
-                      disabled={submitting}
-                    />
+                    <span data-tutorial={macroHelpTriggerTutorialTarget || undefined}>
+                      <MacroHelpTrigger
+                        onClick={handleMacroHelpToggle}
+                        disabled={submitting}
+                      />
+                    </span>
                   </div>
                 )}
               </div>
               <textarea
                 className="form-field__textarea"
                 value={scope}
-                onChange={(e) => setScope(e.target.value)}
+                onChange={(e) => handleScopeChange(e.target.value)}
                 required
                 rows={10}
                 disabled={!macroHelpReady || statusLoading}
               />
             </label>
             <div className="new-project-form__actions">
-              <button type="button" className="toolbar-btn" onClick={onClose}>
-                Cancelar
-              </button>
+              {!tutorialMode && (
+                <button type="button" className="toolbar-btn" onClick={onClose}>
+                  Cancelar
+                </button>
+              )}
               <button
                 type="submit"
                 className="toolbar-btn toolbar-btn--primary"
                 disabled={submitting || !canSubmit}
+                data-tutorial={submitTutorialTarget || undefined}
               >
                 {submitting ? "Criando…" : "Criar projeto"}
               </button>

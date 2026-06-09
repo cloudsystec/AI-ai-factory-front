@@ -5,6 +5,7 @@ import {
   canConnectClientGit,
 } from "./lib/projectGit.js";
 import GitDisconnectPanel from "./components/GitDisconnectPanel.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 import { useGitDisconnect } from "./hooks/useGitDisconnect.js";
 
 /**
@@ -174,14 +175,13 @@ export default function ProjectBar({
         )}
       </div>
 
-      <label htmlFor="project-select" className="visually-hidden">
-        Projeto
-      </label>
-      <select
+      <GlassSelect
         id="project-select"
+        wrapClassName="glass-select-wrap--fluid"
         className="project-bar__select"
         value={selectedProject}
         onChange={(e) => onProjectChange(e.target.value)}
+        aria-label="Projeto"
       >
         <option value="">Selecione um projeto</option>
         {projects.map((p) => {
@@ -192,7 +192,7 @@ export default function ProjectBar({
             </option>
           );
         })}
-      </select>
+      </GlassSelect>
 
       {selectedProject && showBody && (
         <div className="project-bar__body">

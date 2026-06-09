@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api.js";
 import AppModal from "./components/AppModal.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 
 /**
  * @param {{
@@ -195,22 +196,22 @@ export default function ConnectGitModal({
               </fieldset>
 
               {gitMode === "existing" ? (
-                <label className="form-field">
-                  <span className="form-field__label">Repo</span>
-                  <select
-                    className="form-field__input"
-                    value={repoFullName}
-                    onChange={(e) => setRepoFullName(e.target.value)}
-                    required
-                  >
-                    <option value="">Selecione…</option>
-                    {repos.map((r) => (
-                      <option key={r.fullName} value={r.fullName}>
-                        {r.fullName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <GlassSelect
+                  label="Repo"
+                  fieldClassName="form-field"
+                  labelClassName="form-field__label"
+                  wrapClassName="glass-select-wrap--fluid"
+                  value={repoFullName}
+                  onChange={(e) => setRepoFullName(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione…</option>
+                  {repos.map((r) => (
+                    <option key={r.fullName} value={r.fullName}>
+                      {r.fullName}
+                    </option>
+                  ))}
+                </GlassSelect>
               ) : (
                 <label className="form-field">
                   <span className="form-field__label">Nome do novo repo</span>

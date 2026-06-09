@@ -14,21 +14,25 @@ const DEFAULT_CAPS = {
   canAddUser: false,
 };
 
+function buildSession(data) {
+  return {
+    email: data.email,
+    userId: data.userId,
+    tenantId: data.tenantId,
+    tenantName: data.tenantName || "",
+    role: data.role,
+    planId: data.planId,
+    tutorialPending: Boolean(data.tutorialPending),
+    capabilities: data.capabilities || DEFAULT_CAPS,
+  };
+}
+
 /**
  * @param {{ children: React.ReactNode, onLogout?: () => void }} props
  */
 export function SessionProvider({ children, onLogout, initialLogin = null }) {
   const [session, setSession] = useState(
-    initialLogin
-      ? {
-          email: initialLogin.email,
-          userId: initialLogin.userId,
-          tenantId: initialLogin.tenantId,
-          tenantName: initialLogin.tenantName || "",
-          role: initialLogin.role,
-          capabilities: initialLogin.capabilities || DEFAULT_CAPS,
-        }
-      : null
+    initialLogin ? buildSession(initialLogin) : null
   );
   const [loading, setLoading] = useState(!initialLogin);
   const [error, setError] = useState(null);
@@ -47,15 +51,7 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
         throw new Error(await res.text());
       }
       const data = await res.json();
-      setSession({
-        email: data.email,
-        userId: data.userId,
-        tenantId: data.tenantId,
-        tenantName: data.tenantName || "",
-        role: data.role,
-        planId: data.planId,
-        capabilities: data.capabilities || DEFAULT_CAPS,
-      });
+      setSession(buildSession(data));
     } catch (e) {
       setError(e.message || String(e));
     } finally {
@@ -78,15 +74,17 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
   }, [session?.email]);
 
   const setFromLogin = useCallback((loginPayload) => {
-    setSession({
-      email: loginPayload.email,
-      userId: loginPayload.userId,
-      tenantId: loginPayload.tenantId,
-      tenantName: loginPayload.tenantName || "",
-      role: loginPayload.role,
-      capabilities: loginPayload.capabilities || DEFAULT_CAPS,
-    });
+    setSession(buildSession(loginPayload));
     setLoading(false);
+  }, []);
+
+  const completeTutorial = useCallback(async () => {
+    const res = await apiFetch("/api/auth/tutorial/complete", { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || res.statusText);
+    }
+    setSession((prev) => (prev ? { ...prev, tutorialPending: false } : prev));
   }, []);
 
   return (
@@ -98,6 +96,7 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
         error,
         refresh,
         setFromLogin,
+        completeTutorial,
         isPlatformAdmin,
       }}
     >

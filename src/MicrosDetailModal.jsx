@@ -35,7 +35,12 @@ function deliveryBadge(status) {
   return <span className={`micro-card__badge ${cls}`}>{label}</span>;
 }
 
-export default function MicrosDetailModal({ micros, onClose }) {
+export default function MicrosDetailModal({
+  micros,
+  onClose,
+  bodyTutorialTarget,
+  disableOverlayClose = false,
+}) {
   const list = Array.isArray(micros) ? micros : [];
 
   return (
@@ -46,8 +51,13 @@ export default function MicrosDetailModal({ micros, onClose }) {
       title="Microescopos"
       titleId="micros-detail-title"
       onClose={onClose}
+      disableOverlayClose={disableOverlayClose}
+      closeOnOverlayClick={!disableOverlayClose}
     >
-      <div className="modal-panel__body micros-detail__list">
+      <div
+        className="modal-panel__body micros-detail__list"
+        data-tutorial={bodyTutorialTarget || undefined}
+      >
           {list.length === 0 && (
             <p className="msg msg--muted">Nenhum micro aprovado.</p>
           )}

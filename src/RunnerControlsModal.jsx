@@ -1,5 +1,6 @@
 import React from "react";
 import AppModal from "./components/AppModal.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 
 /**
  * @param {{
@@ -98,7 +99,8 @@ export default function RunnerControlsModal({
 
           <p className="runner-group__label">Tarefa pontual</p>
           <div className="runner-sidebar__task-row">
-            <select
+            <GlassSelect
+              wrapClassName="glass-select-wrap--fluid"
               className="runner-sidebar__select"
               value={selectedTaskId}
               onChange={(e) => onTaskIdChange(e.target.value)}
@@ -111,7 +113,7 @@ export default function RunnerControlsModal({
                   {truncate(t.title || t.id, 42)}
                 </option>
               ))}
-            </select>
+            </GlassSelect>
             <button
               type="button"
               className="runner-btn"

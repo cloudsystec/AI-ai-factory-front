@@ -1,7 +1,7 @@
 import { apiFetch } from "../api.js";
 
 /**
- * Descarrega ZIP do código de um projecto finalizado.
+ * Descarrega ZIP do código de um projeto finalizado.
  * @param {string} projectSlug
  */
 export async function downloadProjectCode(projectSlug) {

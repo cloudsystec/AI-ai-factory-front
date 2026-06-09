@@ -33,7 +33,15 @@ function projectName(p) {
   return p.name || p.slug;
 }
 
-function HeaderStepper({ scope, onMacroClick, onMicrosClick, onTasksClick, onDevClick, projectCompleted }) {
+function HeaderStepper({
+  scope,
+  onMacroClick,
+  onMicrosClick,
+  onTasksClick,
+  onDevClick,
+  projectCompleted,
+  pipelineStepTutorialTargets = {},
+}) {
   if (!isScopeStateRenderable(scope)) {
     return (
       <div className="flex-1 flex flex-col gap-1.5 min-w-0">
@@ -79,6 +87,7 @@ function HeaderStepper({ scope, onMacroClick, onMicrosClick, onTasksClick, onDev
                 disabled={!onClick}
                 onClick={onClick}
                 title={onClick ? `Abrir ${label}` : label}
+                data-tutorial={pipelineStepTutorialTargets[step.key] || undefined}
               >
                 {isDone ? (
                   <div
@@ -164,6 +173,10 @@ export default function DashboardTopBar({
   onEditProject,
   notificationProjectSlug = null,
   notificationProjectName = null,
+  projectPickerTutorialTarget = null,
+  newProjectTutorialTarget = null,
+  agentsNavTutorialTarget = null,
+  pipelineStepTutorialTargets = null,
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -173,7 +186,7 @@ export default function DashboardTopBar({
   const activeName =
     selectedProjectMeta && typeof selectedProjectMeta === "object"
       ? selectedProjectMeta.name || selectedProject
-      : selectedProject || "Selecione um projecto";
+      : selectedProject || "Selecione um projeto";
   const selectedPalette = getProjectFolderPalette(selectedProjectMeta, scope);
   const selectedLifecycle = resolveProjectLifecycleStatus(selectedProjectMeta, scope);
 
@@ -229,6 +242,7 @@ export default function DashboardTopBar({
               type="button"
               className="project-selector flex items-center gap-2.5 px-3.5 py-2 rounded-xl"
               id="project-trigger"
+              data-tutorial={projectPickerTutorialTarget || undefined}
               onClick={() => setDropdownOpen((o) => !o)}
             >
               <div
@@ -293,6 +307,7 @@ export default function DashboardTopBar({
               <button
                 type="button"
                 className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                data-tutorial={newProjectTutorialTarget || undefined}
                 style={{
                   background: "linear-gradient(135deg,rgba(20,184,166,0.14) 0%,rgba(6,182,212,0.08) 100%)",
                   border: "1px solid rgba(20,184,166,0.25)",
@@ -307,7 +322,7 @@ export default function DashboardTopBar({
           </div>
 
           <div
-            className={`project-dropdown${dropdownOpen ? " open" : ""}`}
+            className={`project-dropdown glass-menu${dropdownOpen ? " open" : ""}`}
             id="project-dropdown"
             style={{ top: "calc(100% + 8px)", left: 0 }}
           >
@@ -317,7 +332,7 @@ export default function DashboardTopBar({
                   Projetos
                 </span>
                 <span className="text-dash-caption text-teal-400 font-semibold">
-                  {projects.length} projecto{projects.length !== 1 ? "s" : ""}
+                  {projects.length} projeto{projects.length !== 1 ? "s" : ""}
                 </span>
               </div>
               <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto custom-scrollbar" id="project-list">
@@ -435,6 +450,7 @@ export default function DashboardTopBar({
             onMicrosClick={onMicrosClick}
             onTasksClick={onTasksClick}
             onDevClick={onDevClick}
+            pipelineStepTutorialTargets={pipelineStepTutorialTargets || {}}
           />
         )}
       </div>
@@ -477,6 +493,7 @@ export default function DashboardTopBar({
             type="button"
             className={`btn-glass px-3.5 py-2 rounded-xl text-dash-body font-medium flex items-center gap-2${activeView === "agents" ? " btn-glass--active" : ""}`}
             onClick={onAgents}
+            data-tutorial={agentsNavTutorialTarget || undefined}
           >
             <FontAwesomeIcon icon={faRobot} className="text-violet-400 text-dash-body" />
             <span className={`text-dash-body${activeView === "agents" ? "" : " text-slate-300"}`}>Agentes</span>

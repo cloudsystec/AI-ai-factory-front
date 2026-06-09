@@ -2708,13 +2708,6 @@ select:-webkit-autofill {
 
 .runner-sidebar__select {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.8rem;
 }
 
 .runner-sidebar__prompt {
@@ -4205,22 +4198,7 @@ select:-webkit-autofill {
 }
 
 .usage-events-modal__filter-select {
-  min-width: min(280px, 100%);
-  max-width: 360px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 16, 38, 0.85);
-  color: #e2e8f0;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.usage-events-modal__filter-select:focus {
-  outline: none;
-  border-color: rgba(20, 184, 166, 0.45);
-  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.12);
+  min-width: min(240px, 100%);
 }
 
 .usage-events-modal__filter-active {

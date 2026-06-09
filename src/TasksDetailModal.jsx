@@ -49,7 +49,7 @@ export default function TasksDetailModal({ openMicro, detail, onClose }) {
     >
       <div className="modal-panel__body tasks-detail-modal__body">
           {!openMicro?.id ? (
-            <p className="msg msg--muted">Nenhum micro aberto neste projecto.</p>
+            <p className="msg msg--muted">Nenhum micro aberto neste projeto.</p>
           ) : tasks.length === 0 ? (
             <p className="msg msg--muted">
               Ainda não há tasks para este micro — rode scope (Onda) para gerar.

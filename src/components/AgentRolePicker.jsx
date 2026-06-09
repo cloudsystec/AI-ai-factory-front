@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faCheck } from "@fortawesome/free-solid-svg-icons";
 import { AGENT_ROLE_KEYS } from "../agentRoleKeys.js";
@@ -9,11 +9,21 @@ import { getAgentRoleMeta } from "../lib/agentRoleMeta.js";
  *   value: string,
  *   onChange: (roleKey: string) => void,
  *   disabled?: boolean,
+ *   excludeRoleKeys?: string[],
  * }} props
  */
-export default function AgentRolePicker({ value, onChange, disabled = false }) {
+export default function AgentRolePicker({
+  value,
+  onChange,
+  disabled = false,
+  excludeRoleKeys = [],
+}) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const visibleKeys = useMemo(() => {
+    const hidden = new Set(excludeRoleKeys);
+    return AGENT_ROLE_KEYS.filter((key) => !hidden.has(key));
+  }, [excludeRoleKeys]);
   const selected = getAgentRoleMeta(value);
 
   useEffect(() => {
@@ -66,8 +76,8 @@ export default function AgentRolePicker({ value, onChange, disabled = false }) {
       </button>
 
       {open && (
-        <ul className="agent-role-picker__menu custom-scrollbar" role="listbox">
-          {AGENT_ROLE_KEYS.map((key) => {
+        <ul className="agent-role-picker__menu glass-menu custom-scrollbar" role="listbox">
+          {visibleKeys.map((key) => {
             const meta = getAgentRoleMeta(key);
             const isActive = key === value;
             return (

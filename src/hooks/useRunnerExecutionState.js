@@ -652,7 +652,7 @@ export function useRunnerExecutionState({
 
     : anyActive
 
-      ? `${activeSlots.length} bot(s) activo(s) neste projecto`
+      ? `${activeSlots.length} bot(s) ativo(s) neste projeto`
 
       : projectCompleted
         ? "Projeto finalizado — execução desactivada"

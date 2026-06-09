@@ -2,10 +2,12 @@ import React, { useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import "./App.css";
 import "./styles/app-glass-theme.css";
+import "./styles/tutorial.css";
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
 import LandingPage from "./landing/LandingPage.jsx";
-import { SessionProvider } from "./SessionContext.jsx";
+import TutorialExperience from "./tutorial/TutorialExperience.jsx";
+import { SessionProvider, useSession } from "./SessionContext.jsx";
 import { SocketProvider } from "./useSocket.jsx";
 import { clearToken, isLoggedIn, setToken } from "./api.js";
 
@@ -35,6 +37,57 @@ function LoginRoute() {
   );
 }
 
+function AppGate({ onLogout }) {
+  const { session, loading, completeTutorial } = useSession();
+
+  if (loading) {
+    return (
+      <div
+        className="ux-dashboard min-h-screen flex items-center justify-center"
+        style={{ color: "#94a3b8", background: "#04071a" }}
+      >
+        A carregar…
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div
+        className="ux-dashboard min-h-screen flex flex-col items-center justify-center gap-3 px-6"
+        style={{ color: "#94a3b8", background: "#04071a" }}
+      >
+        <p>Não foi possível carregar a sessão.</p>
+        <button
+          type="button"
+          className="tutorial-btn tutorial-btn--primary"
+          onClick={onLogout}
+        >
+          Voltar ao login
+        </button>
+      </div>
+    );
+  }
+
+  const showTutorial =
+    session?.role === "executor" && session?.tutorialPending === true;
+
+  if (showTutorial) {
+    return (
+      <TutorialExperience
+        onFinish={completeTutorial}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  return (
+    <SocketProvider>
+      <App onLogout={onLogout} />
+    </SocketProvider>
+  );
+}
+
 function AppRoute() {
   if (!isLoggedIn()) {
     return <Redirect to="/login" />;
@@ -46,11 +99,9 @@ function AppRoute() {
   }
 
   return (
-    <SocketProvider>
-      <SessionProvider onLogout={handleLogout}>
-        <App onLogout={handleLogout} />
-      </SessionProvider>
-    </SocketProvider>
+    <SessionProvider onLogout={handleLogout}>
+      <AppGate onLogout={handleLogout} />
+    </SessionProvider>
   );
 }
 

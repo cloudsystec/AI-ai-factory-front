@@ -4,7 +4,10 @@ import { faBolt, faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
 import WorkerRobots from "../WorkerRobots.jsx";
 import { useRunnerExecution } from "../context/RunnerExecutionContext.jsx";
 
-export default function MotorSidebar() {
+/**
+ * @param {{ playAllTutorialTarget?: string }} props
+ */
+export default function MotorSidebar({ playAllTutorialTarget }) {
   const r = useRunnerExecution();
   const poolPct =
     r.slotsMax > 0
@@ -78,6 +81,7 @@ export default function MotorSidebar() {
               disabled={bulkLoading}
               title="Iniciar todos os bots neste projeto"
               onClick={r.handlePlayAll}
+              data-tutorial={playAllTutorialTarget || undefined}
             >
               <FontAwesomeIcon icon={faPlay} />
               <span>{bulkLoading ? "…" : "Play all"}</span>

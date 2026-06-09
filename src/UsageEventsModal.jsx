@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "./api.js";
 import AppModal from "./components/AppModal.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 import { formatBrl, formatCostBaseUsd, usdToBrl } from "./format-brl.js";
 
 const PAGE_SIZE = 10;
@@ -124,7 +125,8 @@ export default function UsageEventsModal({
             <div className="usage-events-modal__toolbar">
               <label className="usage-events-modal__filter">
                 <span className="usage-events-modal__filter-label">Agente</span>
-                <select
+                <GlassSelect
+                  wrapClassName="glass-select-wrap--auto"
                   className="usage-events-modal__filter-select"
                   value={agentFilter}
                   onChange={(e) => setAgentFilter(e.target.value)}
@@ -136,7 +138,7 @@ export default function UsageEventsModal({
                       {agent.agentName} ({agent.count.toLocaleString("pt-BR")})
                     </option>
                   ))}
-                </select>
+                </GlassSelect>
               </label>
               {agentFilter !== ALL_AGENTS && (
                 <span className="usage-events-modal__filter-active">

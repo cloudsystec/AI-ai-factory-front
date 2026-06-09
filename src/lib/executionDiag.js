@@ -24,7 +24,7 @@ export function gitStatusLabel(status) {
  */
 export function describeGitPipeline(meta) {
   if (!meta || typeof meta !== "object") {
-    return { step: "—", detail: "Projecto não seleccionado" };
+    return { step: "—", detail: "Projeto não selecionado" };
   }
   const status = String(meta.gitStatus || "");
   const mode = String(meta.repoMode || "");

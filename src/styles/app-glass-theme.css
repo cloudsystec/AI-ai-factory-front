@@ -112,6 +112,7 @@ body.app-body {
 
 .modal-panel,
 .users-modal,
+.admin-modal,
 .scope-preview-modal {
   background: linear-gradient(160deg, rgba(10, 20, 48, 0.99) 0%, rgba(6, 12, 32, 0.99) 100%);
   backdrop-filter: blur(48px) saturate(160%);
@@ -341,7 +342,7 @@ body.app-body {
 .admin-page__toolbar input,
 .admin-editor textarea,
 .users-modal form input,
-.users-modal form select,
+.users-modal form select.glass-select,
 .login-input__wrap,
 .macro-help-drawer__input,
 .macro-detail-modal__textarea,
@@ -369,7 +370,8 @@ body.app-body {
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
 }
 
-/* —— Select glass (admin / agentes) —— */
+/* —— Select glass (padrão global) —— */
+.glass-field,
 .admin-page__field,
 .users-page__field {
   display: flex;
@@ -378,8 +380,10 @@ body.app-body {
   min-width: 0;
 }
 
+.glass-field__label,
 .admin-page__label,
-.users-page__label {
+.users-page__label,
+.admin-mgmt__label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -395,6 +399,26 @@ body.app-body {
   max-width: 360px;
 }
 
+.glass-select-wrap--fluid {
+  max-width: none;
+  min-width: 0;
+}
+
+.glass-select-wrap--auto {
+  width: auto;
+  min-width: min(200px, 100%);
+  max-width: none;
+}
+
+.admin-form-card .glass-select-wrap,
+.admin-mgmt__field .glass-select-wrap,
+.admin-modal__form .glass-select-wrap,
+.glass-field .glass-select-wrap,
+.form-field .glass-select-wrap {
+  max-width: none;
+  min-width: 0;
+}
+
 .glass-select-wrap::after {
   content: "";
   position: absolute;
@@ -404,11 +428,21 @@ body.app-body {
   border: 4px solid transparent;
   border-top-color: #64748b;
   pointer-events: none;
+  transition: border-top-color 0.2s ease;
+}
+
+.glass-select-wrap:has(.glass-select:hover:not(:disabled))::after,
+.glass-select-wrap:has(.glass-select:focus)::after {
+  border-top-color: #5eead4;
 }
 
 .glass-select,
 .admin-page__toolbar select.glass-select,
-.users-page__field select.glass-select {
+.users-page__field select.glass-select,
+.runner-sidebar__select,
+.project-bar__select,
+.project-selector-bar__select,
+.usage-events-modal__filter-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -428,26 +462,56 @@ body.app-body {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.glass-select:hover:not(:disabled) {
+.glass-select:hover:not(:disabled),
+.runner-sidebar__select:hover:not(:disabled),
+.project-bar__select:hover:not(:disabled),
+.usage-events-modal__filter-select:hover:not(:disabled) {
   border-color: rgba(20, 184, 166, 0.32);
 }
 
 .glass-select:focus,
-.glass-select:focus-visible {
+.glass-select:focus-visible,
+.runner-sidebar__select:focus,
+.runner-sidebar__select:focus-visible,
+.project-bar__select:focus,
+.project-bar__select:focus-visible,
+.usage-events-modal__filter-select:focus,
+.usage-events-modal__filter-select:focus-visible {
   outline: none;
   border-color: rgba(20, 184, 166, 0.45);
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
 }
 
-.glass-select:disabled {
+.glass-select:disabled,
+.runner-sidebar__select:disabled,
+.project-bar__select:disabled,
+.usage-events-modal__filter-select:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.glass-select option {
+.glass-select option,
+.runner-sidebar__select option,
+.project-bar__select option,
+.usage-events-modal__filter-select option {
   background: #0a1430;
   color: #e2e8f0;
   font-size: 11px;
+}
+
+/* Menus custom (dropdowns não-nativos) */
+.glass-menu,
+.agent-role-picker__menu,
+.project-dropdown {
+  background: linear-gradient(160deg, rgba(10, 20, 48, 0.99) 0%, rgba(6, 12, 32, 0.99) 100%);
+  backdrop-filter: blur(48px) saturate(160%);
+  -webkit-backdrop-filter: blur(48px) saturate(160%);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .admin-page__toolbar {

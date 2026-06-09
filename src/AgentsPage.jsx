@@ -7,6 +7,7 @@ import {
   faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
+import { useSession } from "./SessionContext.jsx";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 import AgentRolePicker from "./components/AgentRolePicker.jsx";
 import AgentConfigHelpPanel from "./AgentConfigHelpPanel.jsx";
@@ -20,7 +21,9 @@ import { getAgentRoleMeta } from "./lib/agentRoleMeta.js";
  * }} props
  */
 export default function AgentsPage({ projectSlug, projectName = null }) {
-  const [roleKey, setRoleKey] = useState("global");
+  const { isPlatformAdmin } = useSession();
+  const [roleKey, setRoleKey] = useState("dev");
+  const [canEditGlobal, setCanEditGlobal] = useState(false);
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
   const [error, setError] = useState(null);
@@ -32,8 +35,13 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
 
   const displayName =
     projectName?.trim() || projectSlug?.trim() || "";
+  const canSeeGlobal = canEditGlobal || isPlatformAdmin;
   const roleMeta = getAgentRoleMeta(roleKey);
   const isDirty = content !== savedContent;
+  const hiddenRoleKeys = useMemo(
+    () => (canSeeGlobal ? [] : ["global"]),
+    [canSeeGlobal]
+  );
   const lineCount = useMemo(
     () => (content ? content.split("\n").length : 0),
     [content]
@@ -46,17 +54,24 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
     );
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
+    setCanEditGlobal(Boolean(data.canEditGlobal) || isPlatformAdmin);
     const row = (data.overrides || []).find((r) => r.role_key === roleKey);
     const next = row?.content || "";
     setContent(next);
     setSavedContent(next);
-  }, [projectSlug, roleKey]);
+  }, [projectSlug, roleKey, isPlatformAdmin]);
 
   useEffect(() => {
     setError(null);
     setMessage(null);
     load().catch((e) => setError(e.message));
   }, [load]);
+
+  useEffect(() => {
+    if (!canSeeGlobal && roleKey === "global") {
+      setRoleKey("dev");
+    }
+  }, [canSeeGlobal, roleKey]);
 
   useEffect(() => {
     if (!projectSlug) return;
@@ -170,7 +185,11 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
         >
           <div className="agents-page__layout">
             <div className="agents-page__toolbar">
-            <AgentRolePicker value={roleKey} onChange={setRoleKey} />
+            <AgentRolePicker
+              value={roleKey}
+              onChange={setRoleKey}
+              excludeRoleKeys={hiddenRoleKeys}
+            />
             <div className="agents-page__toolbar-actions">
               <button
                 type="button"

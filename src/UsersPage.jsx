@@ -1,13 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBuilding,
+  faPen,
+  faPlus,
+  faTrash,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 import AppModal from "./components/AppModal.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 
 const ROLE_LABELS = {
   executor: "Executor",
   auditor: "Auditor",
   viewer: "Visualizador",
+};
+
+const PLAN_LABELS = {
+  starter: "Starter",
+  team: "Team",
+  scale: "Scale",
+  business: "Business",
+  enterprise: "Enterprise",
 };
 
 /**
@@ -19,6 +36,11 @@ function usersApiBase(isPlatformAdmin, tenantId) {
     return `/admin/tenants/${tenantId}/users`;
   }
   return "/api/tenant-users";
+}
+
+function userInitial(email) {
+  const ch = String(email || "?").trim()[0];
+  return ch ? ch.toUpperCase() : "?";
 }
 
 /**
@@ -118,6 +140,12 @@ export default function UsersPage() {
     setMessage(null);
   }
 
+  function closeCreate() {
+    setShowCreate(false);
+    setCreateEmail("");
+    setCreatePassword("");
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     clearFeedback();
@@ -134,9 +162,7 @@ export default function UsersPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
       setMessage("Usuário criado com sucesso.");
-      setCreateEmail("");
-      setCreatePassword("");
-      setShowCreate(false);
+      closeCreate();
       await loadUsers();
     } catch (err) {
       setError(err.message);
@@ -257,202 +283,214 @@ export default function UsersPage() {
   }
 
   const selectedTenant = tenants.find((t) => t.id === tenantId);
+  const quotaPct = usersMax > 0 ? Math.min(100, (usersUsed / usersMax) * 100) : 0;
 
   return (
     <AppSubpagePanel
-      className="users-page"
+      className="users-page admin-mgmt-page"
       eyebrow="Equipe"
       title="Usuários"
       subtitle={
         isPlatformAdmin
-          ? "Gerenciamento da equipe por empresa (admin plataforma)"
-          : "Equipe da sua empresa"
+          ? "Gerenciamento da equipe por empresa"
+          : "Membros com acesso à sua empresa"
       }
       headerActions={
-        <span className="users-page__quota" title="Quota do plano">
+        <span className="admin-mgmt__quota" title="Quota do plano">
+          <FontAwesomeIcon icon={faUsers} aria-hidden />
           {usersUsed} / {usersMax}
         </span>
       }
     >
-
-      {isPlatformAdmin && (
-        <>
-          <div className="users-page__toolbar">
-            <label className="users-page__field">
-              <span className="users-page__label">Empresa (tenant)</span>
-              <select
-                value={tenantId}
-                onChange={(e) => setTenantId(e.target.value)}
-              >
-                {tenants.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name || t.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedTenant && (
-              <span className="users-page__meta">
-                Plano: {selectedTenant.plan_id || "—"}
-              </span>
-            )}
-            <button
-              type="button"
-              className="toolbar-btn toolbar-btn--primary"
-              onClick={() => setShowCreateTenant((v) => !v)}
-            >
-              {showCreateTenant ? "Cancelar" : "+ Nova empresa"}
-            </button>
+      <div className="admin-mgmt">
+        {(error || message) && (
+          <div className="admin-mgmt__alerts" role="status">
+            {error && <p className="msg msg--error">{error}</p>}
+            {message && <p className="msg msg--ok">{message}</p>}
           </div>
+        )}
 
-          {showCreateTenant && (
-            <form className="users-form-card" onSubmit={handleCreateTenant}>
-              <h3 style={{ margin: "0 0 8px" }}>Nova empresa</h3>
-              <div className="users-form-card__grid">
-                <label>
-                  Email da empresa
-                  <input
-                    type="email"
-                    value={newTenantEmail}
-                    onChange={(e) => setNewTenantEmail(e.target.value)}
-                    required
-                    placeholder="empresa@exemplo.com"
-                  />
-                </label>
-                <label>
-                  Nome da empresa
-                  <input
-                    type="text"
-                    value={newTenantName}
-                    onChange={(e) => setNewTenantName(e.target.value)}
-                    required
-                    placeholder="Acme Corp"
-                  />
-                </label>
-                <label>
-                  Plano
-                  <select
-                    value={newTenantPlan}
-                    onChange={(e) => setNewTenantPlan(e.target.value)}
-                  >
-                    <option value="starter">Starter</option>
-                    <option value="team">Team</option>
-                    <option value="scale">Scale</option>
-                    <option value="business">Business</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </label>
+        {isPlatformAdmin && (
+          <section className="admin-mgmt__company">
+            <div className="admin-mgmt__company-bar">
+              <div className="admin-mgmt__company-icon" aria-hidden>
+                <FontAwesomeIcon icon={faBuilding} />
               </div>
-              <h4 style={{ margin: "12px 0 4px" }}>Primeiro auditor</h4>
-              <div className="users-form-card__grid">
-                <label>
-                  Email do auditor
-                  <input
-                    type="email"
-                    value={newAuditorEmail}
-                    onChange={(e) => setNewAuditorEmail(e.target.value)}
-                    required
-                    placeholder="auditor@exemplo.com"
-                  />
-                </label>
-                <label>
-                  Senha do auditor
-                  <input
-                    type="password"
-                    value={newAuditorPassword}
-                    onChange={(e) => setNewAuditorPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                </label>
-              </div>
-              <button
-                type="submit"
-                className="toolbar-btn toolbar-btn--primary"
-                style={{ marginTop: 8 }}
-              >
-                Criar empresa
-              </button>
-            </form>
-          )}
-        </>
-      )}
-
-      {error && <p className="msg msg--error">{error}</p>}
-      {message && <p className="msg msg--ok">{message}</p>}
-
-      <div className="users-page__main">
-        <section className="users-panel">
-          <div className="users-panel__head">
-            <h2>Equipe</h2>
-            {canAddUser && (
-              <button
-                type="button"
-                className="toolbar-btn toolbar-btn--primary"
-                onClick={() => setShowCreate((v) => !v)}
-              >
-                {showCreate ? "Cancelar" : "+ Novo usuário"}
-              </button>
-            )}
-          </div>
-
-          {showCreate && canAddUser && (
-            <form className="users-form-card" onSubmit={handleCreate}>
-              <div className="users-form-card__grid">
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={createEmail}
-                    onChange={(e) => setCreateEmail(e.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Papel
-                  <select
-                    value={createRole}
-                    onChange={(e) => setCreateRole(e.target.value)}
+              <div className="admin-mgmt__company-main">
+                <label className="admin-mgmt__field admin-mgmt__field--grow">
+                  <span className="admin-mgmt__label">Empresa</span>
+                  <GlassSelect
+                    wrapClassName="glass-select-wrap--fluid"
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value)}
                   >
-                    {creatableRoles.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABELS[r]}
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name || t.email}
                       </option>
                     ))}
-                  </select>
+                  </GlassSelect>
                 </label>
-                <label>
-                  Senha inicial
-                  <input
-                    type="password"
-                    value={createPassword}
-                    onChange={(e) => setCreatePassword(e.target.value)}
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                </label>
+                {selectedTenant && (
+                  <div className="admin-mgmt__chips">
+                    <span className="admin-mgmt__chip">
+                      Plano{" "}
+                      {PLAN_LABELS[selectedTenant.plan_id] ||
+                        selectedTenant.plan_id ||
+                        "—"}
+                    </span>
+                    <span className="admin-mgmt__chip admin-mgmt__chip--teal">
+                      {usersUsed}/{usersMax} usuários
+                    </span>
+                  </div>
+                )}
               </div>
               <button
-                type="submit"
-                className="toolbar-btn toolbar-btn--primary"
+                type="button"
+                className={`toolbar-btn${showCreateTenant ? "" : " toolbar-btn--primary"}`}
+                onClick={() => setShowCreateTenant((v) => !v)}
               >
-                Criar usuário
+                <FontAwesomeIcon icon={faPlus} aria-hidden />
+                {showCreateTenant ? "Cancelar" : "Nova empresa"}
               </button>
-            </form>
-          )}
+            </div>
+
+            {showCreateTenant && (
+              <form className="admin-form-card" onSubmit={handleCreateTenant}>
+                <header className="admin-form-card__header">
+                  <div>
+                    <h3 className="admin-form-card__title">Nova empresa</h3>
+                    <p className="admin-form-card__desc">
+                      Cria o tenant, plano e o primeiro auditor de acesso.
+                    </p>
+                  </div>
+                </header>
+
+                <div className="admin-form-card__section">
+                  <p className="admin-form-card__section-label">Dados da empresa</p>
+                  <div className="admin-form-card__grid">
+                    <label className="admin-mgmt__field">
+                      <span className="admin-mgmt__label">Email da empresa</span>
+                      <input
+                        className="admin-mgmt__input"
+                        type="email"
+                        value={newTenantEmail}
+                        onChange={(e) => setNewTenantEmail(e.target.value)}
+                        required
+                        placeholder="empresa@exemplo.com"
+                      />
+                    </label>
+                    <label className="admin-mgmt__field">
+                      <span className="admin-mgmt__label">Nome da empresa</span>
+                      <input
+                        className="admin-mgmt__input"
+                        type="text"
+                        value={newTenantName}
+                        onChange={(e) => setNewTenantName(e.target.value)}
+                        required
+                        placeholder="Acme Corp"
+                      />
+                    </label>
+                    <label className="admin-mgmt__field">
+                      <span className="admin-mgmt__label">Plano</span>
+                      <GlassSelect
+                        value={newTenantPlan}
+                        onChange={(e) => setNewTenantPlan(e.target.value)}
+                      >
+                        {Object.entries(PLAN_LABELS).map(([id, label]) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </GlassSelect>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="admin-form-card__section">
+                  <p className="admin-form-card__section-label">Primeiro auditor</p>
+                  <div className="admin-form-card__grid">
+                    <label className="admin-mgmt__field">
+                      <span className="admin-mgmt__label">Email do auditor</span>
+                      <input
+                        className="admin-mgmt__input"
+                        type="email"
+                        value={newAuditorEmail}
+                        onChange={(e) => setNewAuditorEmail(e.target.value)}
+                        required
+                        placeholder="auditor@exemplo.com"
+                      />
+                    </label>
+                    <label className="admin-mgmt__field">
+                      <span className="admin-mgmt__label">Senha do auditor</span>
+                      <input
+                        className="admin-mgmt__input"
+                        type="password"
+                        value={newAuditorPassword}
+                        onChange={(e) => setNewAuditorPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <footer className="admin-form-card__footer">
+                  <button type="submit" className="toolbar-btn toolbar-btn--primary">
+                    Criar empresa
+                  </button>
+                </footer>
+              </form>
+            )}
+          </section>
+        )}
+
+        <section className="admin-mgmt__panel">
+          <header className="admin-mgmt__panel-head">
+            <div className="admin-mgmt__panel-intro">
+              <h2 className="admin-mgmt__panel-title">Equipe</h2>
+              <p className="admin-mgmt__panel-desc">
+                {isPlatformAdmin && selectedTenant
+                  ? `Usuários de ${selectedTenant.name || selectedTenant.email}`
+                  : "Gerencie quem pode executar, auditar ou visualizar projetos"}
+              </p>
+            </div>
+            <div className="admin-mgmt__panel-actions">
+              <div className="admin-mgmt__quota-bar" title="Utilização da quota">
+                <div
+                  className="admin-mgmt__quota-fill"
+                  style={{ width: `${quotaPct}%` }}
+                />
+              </div>
+              {canAddUser && (
+                <button
+                  type="button"
+                  className="toolbar-btn toolbar-btn--primary"
+                  onClick={() => {
+                    clearFeedback();
+                    setShowCreate(true);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faPlus} aria-hidden />
+                  Novo usuário
+                </button>
+              )}
+            </div>
+          </header>
 
           {loading ? (
-            <p className="msg msg--muted">Carregando…</p>
+            <p className="msg msg--muted admin-mgmt__empty">Carregando…</p>
           ) : users.length === 0 ? (
-            <p className="msg msg--muted">Nenhum usuário neste tenant.</p>
+            <p className="msg msg--muted admin-mgmt__empty">
+              Nenhum usuário nesta empresa.
+            </p>
           ) : (
-            <div className="users-table-wrap">
-              <table className="users-table">
+            <div className="admin-table-wrap custom-scrollbar">
+              <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Email</th>
+                    <th>Usuário</th>
                     <th>Papel</th>
                     <th>Estado</th>
                     <th aria-label="Ações" />
@@ -461,40 +499,49 @@ export default function UsersPage() {
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id}>
-                      <td className="users-table__email">{u.email}</td>
                       <td>
-                        <span className={`users-badge users-badge--${u.role}`}>
+                        <div className="admin-table__user">
+                          <span className="admin-table__avatar" aria-hidden>
+                            {userInitial(u.email)}
+                          </span>
+                          <span className="admin-table__email">{u.email}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`admin-badge admin-badge--${u.role}`}>
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                       </td>
-                      <td className="users-table__status">
+                      <td>
                         <span
-                          className={
-                            u.hasPassword
-                              ? "users-status users-status--ok"
-                              : "users-status users-status--warn"
-                          }
+                          className={`admin-status admin-status--${
+                            u.hasPassword ? "ok" : "warn"
+                          }`}
                         >
-                          Senha {u.hasPassword ? "ok" : "pendente"}
+                          {u.hasPassword ? "Senha configurada" : "Senha pendente"}
                         </span>
                       </td>
-                      <td className="users-table__actions">
+                      <td className="admin-table__actions">
                         {canEditUser(u) && (
                           <button
                             type="button"
-                            className="toolbar-btn"
+                            className="admin-table__icon-btn"
                             onClick={() => openEdit(u)}
+                            title="Editar usuário"
                           >
-                            Editar
+                            <FontAwesomeIcon icon={faPen} aria-hidden />
+                            <span>Editar</span>
                           </button>
                         )}
                         {canDeleteUser(u) && (
                           <button
                             type="button"
-                            className="toolbar-btn toolbar-btn--danger"
+                            className="admin-table__icon-btn admin-table__icon-btn--danger"
                             onClick={() => handleDelete(u)}
+                            title="Remover usuário"
                           >
-                            Remover
+                            <FontAwesomeIcon icon={faTrash} aria-hidden />
+                            <span>Remover</span>
                           </button>
                         )}
                       </td>
@@ -505,72 +552,144 @@ export default function UsersPage() {
             </div>
           )}
         </section>
-
       </div>
+
+      {showCreate && canAddUser && (
+        <AppModal
+          variant="form"
+          panelClassName="admin-modal"
+          eyebrow="Equipe"
+          title="Novo usuário"
+          titleId="create-user-title"
+          subtitle="Convide alguém para acessar a plataforma nesta empresa"
+          onClose={closeCreate}
+        >
+          <form className="admin-modal__form" onSubmit={handleCreate}>
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">Email</span>
+              <input
+                className="admin-mgmt__input"
+                type="email"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+                required
+                placeholder="usuario@empresa.com"
+                autoFocus
+              />
+            </label>
+            <GlassSelect
+              label="Papel"
+              fieldClassName="admin-mgmt__field"
+              labelClassName="admin-mgmt__label"
+              value={createRole}
+              onChange={(e) => setCreateRole(e.target.value)}
+            >
+              {creatableRoles.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </GlassSelect>
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">Senha inicial</span>
+              <input
+                className="admin-mgmt__input"
+                type="password"
+                value={createPassword}
+                onChange={(e) => setCreatePassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="Mínimo 6 caracteres"
+              />
+            </label>
+            <footer className="admin-modal__footer">
+              <button type="button" className="toolbar-btn" onClick={closeCreate}>
+                Cancelar
+              </button>
+              <button type="submit" className="toolbar-btn toolbar-btn--primary">
+                Criar usuário
+              </button>
+            </footer>
+          </form>
+        </AppModal>
+      )}
 
       {editUser && (
         <AppModal
           variant="form"
-          panelClassName="users-modal"
-          eyebrow="Administração"
+          panelClassName="admin-modal"
+          eyebrow="Equipe"
           title="Editar usuário"
           titleId="edit-user-title"
           subtitle={editUser.email}
-          subtitleClassName="users-modal__email"
+          subtitleClassName="admin-modal__subtitle"
           onClose={closeEdit}
         >
-          <form className="modal-panel__body users-modal__form" onSubmit={handleSaveEdit}>
-              <label>
-                Papel
-                {!isPlatformAdmin && editUser.role === "auditor" ? (
-                  <input type="text" readOnly value={ROLE_LABELS.auditor} />
-                ) : (
-                  <select
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value)}
-                  >
-                    {(isPlatformAdmin
-                      ? ["auditor", "executor", "viewer"]
-                      : creatableRoles
-                    ).map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </label>
-
-              {canSetPasswordFor(editUser) && (
-                <label>
-                  Nova senha (opcional, mín. 6)
-                  <input
-                    type="password"
-                    value={editPassword}
-                    onChange={(e) => setEditPassword(e.target.value)}
-                    minLength={6}
-                    autoComplete="new-password"
-                    placeholder="Deixe vazio para não alterar"
-                  />
-                </label>
-              )}
-
-              <div className="users-modal__actions">
-                <button
-                  type="button"
-                  className="toolbar-btn"
-                  onClick={closeEdit}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="toolbar-btn toolbar-btn--primary"
-                >
-                  Salvar
-                </button>
+          <form className="admin-modal__form" onSubmit={handleSaveEdit}>
+            <div className="admin-modal__user-preview">
+              <span className="admin-table__avatar admin-table__avatar--lg" aria-hidden>
+                {userInitial(editUser.email)}
+              </span>
+              <div>
+                <p className="admin-modal__user-email">{editUser.email}</p>
+                <span className={`admin-badge admin-badge--${editUser.role}`}>
+                  {ROLE_LABELS[editUser.role] || editUser.role}
+                </span>
               </div>
-            </form>
+            </div>
+
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">Papel</span>
+              {!isPlatformAdmin && editUser.role === "auditor" ? (
+                <input
+                  className="admin-mgmt__input"
+                  type="text"
+                  readOnly
+                  value={ROLE_LABELS.auditor}
+                />
+              ) : (
+                <GlassSelect
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                >
+                  {(isPlatformAdmin
+                    ? ["auditor", "executor", "viewer"]
+                    : creatableRoles
+                  ).map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </GlassSelect>
+              )}
+            </label>
+
+            {canSetPasswordFor(editUser) && (
+              <label className="admin-mgmt__field">
+                <span className="admin-mgmt__label">Nova senha (opcional)</span>
+                <input
+                  className="admin-mgmt__input"
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  minLength={6}
+                  autoComplete="new-password"
+                  placeholder="Deixe vazio para não alterar"
+                />
+                <span className="admin-mgmt__hint">Mínimo 6 caracteres</span>
+              </label>
+            )}
+
+            <footer className="admin-modal__footer">
+              <button type="button" className="toolbar-btn" onClick={closeEdit}>
+                Cancelar
+              </button>
+              <button type="submit" className="toolbar-btn toolbar-btn--primary">
+                Salvar alterações
+              </button>
+            </footer>
+          </form>
         </AppModal>
       )}
     </AppSubpagePanel>

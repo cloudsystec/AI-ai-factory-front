@@ -36,7 +36,7 @@ export default function ProjectTimeline({
       className={`project-timeline${
         projectCompleted ? " project-timeline--completed" : ""
       }${embedded ? " project-timeline--embedded" : ""}`}
-      aria-label="Progresso do projecto"
+      aria-label="Progresso do projeto"
     >
       <div className="project-timeline__toolbar">
         <div className="project-timeline__stepper" role="list">

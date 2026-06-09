@@ -255,7 +255,7 @@ export default function WorkerRobots({
                 type="button"
                 className="worker-robots__bulk-btn worker-robots__bulk-btn--play"
                 disabled={playAllLoading}
-                title="Dar Play em todos os bots configurados neste projecto"
+                title="Dar Play em todos os bots configurados neste projeto"
                 onClick={onPlayAll}
               >
                 {playAllLoading ? "…" : "▶ Todos"}
@@ -419,7 +419,7 @@ export default function WorkerRobots({
                           ? workspacePreparing
                             ? "A preparar workspace…"
                             : "Aguarde o workspace ficar pronto"
-                          : "Iniciar este bot neste projecto"
+                          : "Iniciar este bot neste projeto"
                     }
                     aria-label={
                       running

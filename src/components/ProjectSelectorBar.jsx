@@ -5,6 +5,7 @@ import {
   canConnectClientGit,
 } from "../lib/projectGit.js";
 import GitDisconnectPanel from "./GitDisconnectPanel.jsx";
+import GlassSelect from "./GlassSelect.jsx";
 import { useGitDisconnect } from "../hooks/useGitDisconnect.js";
 
 function projectSlug(p) {
@@ -64,14 +65,13 @@ export default function ProjectSelectorBar({
             📁
           </span>
         )}
-        <label htmlFor="project-select" className="visually-hidden">
-          Projeto
-        </label>
-        <select
+        <GlassSelect
           id="project-select"
+          wrapClassName="glass-select-wrap--fluid"
           className="project-selector-bar__select project-bar__select"
           value={selectedProject}
           onChange={(e) => onProjectChange(e.target.value)}
+          aria-label="Projeto"
         >
           <option value="">Selecione um projeto</option>
           {projects.map((p) => {
@@ -82,7 +82,7 @@ export default function ProjectSelectorBar({
               </option>
             );
           })}
-        </select>
+        </GlassSelect>
       </div>
 
       {showGitUi && (

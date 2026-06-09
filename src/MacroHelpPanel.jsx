@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api.js";
 import ScopePreviewModal from "./ScopePreviewModal.jsx";
+import { getMockMacroHelpResponse, TUTORIAL_MACRO_HELP_DEMO_INPUT } from "./tutorial/mockMacroHelpResponses.js";
 
 /**
  * Painel de chat ao lado da modal de escopo (sem overlay próprio).
@@ -11,6 +12,12 @@ import ScopePreviewModal from "./ScopePreviewModal.jsx";
  *   projectName?: string,
  *   projectSlug?: string,
  *   draftSlug?: string,
+ *   tutorialMode?: boolean,
+ *   tutorialInputTarget?: string,
+ *   tutorialSendTarget?: string,
+ *   tutorialAutoTypeSignal?: number,
+ *   onTutorialAutoTypeComplete?: () => void,
+ *   onTutorialMessageSent?: () => void,
  * }} props
  */
 export default function MacroHelpPanel({
@@ -20,6 +27,12 @@ export default function MacroHelpPanel({
   projectName = "",
   projectSlug = "",
   draftSlug = "",
+  tutorialMode = false,
+  tutorialInputTarget,
+  tutorialSendTarget,
+  tutorialAutoTypeSignal = 0,
+  onTutorialAutoTypeComplete,
+  onTutorialMessageSent,
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -28,11 +41,47 @@ export default function MacroHelpPanel({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [lastScopeMd, setLastScopeMd] = useState(scopeMd);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const tutorialNotifiedRef = useRef(false);
 
   useEffect(() => {
     setLastScopeMd(scopeMd);
     setError(null);
   }, [scopeMd]);
+
+  useEffect(() => {
+    if (!tutorialInputTarget) return undefined;
+    const id = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 150);
+    return () => window.clearTimeout(id);
+  }, [tutorialInputTarget]);
+
+  useEffect(() => {
+    if (!tutorialAutoTypeSignal) return undefined;
+    let cancelled = false;
+    let timeoutId = null;
+    const text = TUTORIAL_MACRO_HELP_DEMO_INPUT;
+    setInput("");
+    let index = 0;
+
+    function tick() {
+      if (cancelled) return;
+      if (index <= text.length) {
+        setInput(text.slice(0, index));
+        index += 1;
+        timeoutId = window.setTimeout(tick, 32);
+        return;
+      }
+      onTutorialAutoTypeComplete?.();
+    }
+
+    timeoutId = window.setTimeout(tick, 180);
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [tutorialAutoTypeSignal, onTutorialAutoTypeComplete]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -64,6 +113,22 @@ export default function MacroHelpPanel({
     setError(null);
 
     try {
+      if (tutorialMode) {
+        await new Promise((r) => window.setTimeout(r, 800));
+        const mock = getMockMacroHelpResponse(text);
+        setLastScopeMd(mock.scopeMd);
+        onScopeChange(mock.scopeMd);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: mock.assistantMessage },
+        ]);
+        if (!tutorialNotifiedRef.current) {
+          tutorialNotifiedRef.current = true;
+          onTutorialMessageSent?.();
+        }
+        return;
+      }
+
       const res = await apiFetch("/api/macro-help/chat", {
         method: "POST",
         body: JSON.stringify({
@@ -97,7 +162,10 @@ export default function MacroHelpPanel({
 
   return (
     <>
-      <aside className="macro-help-companion-panel" aria-label="Ajuda com escopo macro">
+      <aside
+        className="macro-help-companion-panel"
+        aria-label="Ajuda com escopo macro"
+      >
         <header className="macro-help-drawer__head">
           <div>
             <p className="macro-help-drawer__eyebrow">MacroHelp</p>
@@ -115,8 +183,9 @@ export default function MacroHelpPanel({
         </header>
 
         <p className="macro-help-companion-panel__hint">
-          O escopo à esquerda atualiza em tempo real — pode copiar, colar e editar
-          enquanto conversa.
+          {tutorialMode
+            ? "Descreva sua ideia — o texto do escopo à esquerda é atualizado enquanto você conversa."
+            : "O escopo à esquerda atualiza em tempo real — pode copiar, colar e editar enquanto conversa."}
         </p>
 
         <div className="macro-help-drawer__messages custom-scrollbar">
@@ -143,12 +212,14 @@ export default function MacroHelpPanel({
 
         <form className="macro-help-drawer__form" onSubmit={handleSend}>
           <textarea
+            ref={inputRef}
             className="form-field__textarea macro-help-drawer__input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex.: incluir autenticação, painel admin e API REST…"
             rows={3}
             disabled={pending}
+            data-tutorial={tutorialInputTarget || undefined}
           />
           <div className="macro-help-drawer__actions">
             <button
@@ -163,6 +234,7 @@ export default function MacroHelpPanel({
               type="submit"
               className="toolbar-btn toolbar-btn--primary"
               disabled={pending || !input.trim()}
+              data-tutorial={tutorialSendTarget || undefined}
             >
               Enviar
             </button>

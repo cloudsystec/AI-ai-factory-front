@@ -24,6 +24,7 @@ import ModalPortal from "./ModalPortal.jsx";
  *   overlayClassName?: string,
  *   companion?: React.ReactNode,
  *   companionOpen?: boolean,
+ *   panelDataTutorial?: string,
  * }} props
  */
 export default function AppModal({
@@ -48,6 +49,7 @@ export default function AppModal({
   overlayClassName = "",
   companion = null,
   companionOpen = false,
+  panelDataTutorial,
 }) {
   const labelledBy = ariaLabelledBy || titleId;
   const hasCompanion = companionOpen && companion;
@@ -106,6 +108,7 @@ export default function AppModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby={labelledBy}
+          data-tutorial={panelDataTutorial || undefined}
           onClick={(e) => e.stopPropagation()}
         >
           {showHeader && (title || eyebrow || onClose) && (

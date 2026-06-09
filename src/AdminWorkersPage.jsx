@@ -1,6 +1,24 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBuilding,
+  faKey,
+  faPen,
+  faRobot,
+  faServer,
+} from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
+import AppModal from "./components/AppModal.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
+
+const PLAN_LABELS = {
+  starter: "Starter",
+  team: "Team",
+  scale: "Scale",
+  business: "Business",
+  enterprise: "Enterprise",
+};
 
 /**
  * Admin plataforma — bots e workers por tenant.
@@ -17,6 +35,7 @@ export default function AdminWorkersPage() {
   const [tenantAdminKey, setTenantAdminKey] = useState("");
   const [savingSlot, setSavingSlot] = useState(null);
   const [provisioningWorker, setProvisioningWorker] = useState(false);
+  const [editSlot, setEditSlot] = useState(null);
 
   const loadTenants = useCallback(async () => {
     const res = await apiFetch("/admin/tenants");
@@ -60,11 +79,40 @@ export default function AdminWorkersPage() {
       .finally(() => setLoading(false));
   }, [loadWorkers]);
 
+  function deployStatusLabel(status) {
+    if (!status) return "Sem registo";
+    const map = {
+      pending: "Pendente",
+      provisioning: "A provisionar…",
+      configured: "Config OK / build pendente",
+      deployed: "Deploy OK",
+      failed: "Falhou",
+    };
+    return map[status] || status;
+  }
+
+  function deployStatusTone(status) {
+    if (status === "deployed") return "ok";
+    if (status === "failed") return "danger";
+    if (status === "provisioning" || status === "pending") return "warn";
+    return "muted";
+  }
+
+  function openSlotEdit(slot) {
+    setEditSlot(slot);
+    setError(null);
+    setMessage(null);
+  }
+
+  function closeSlotEdit() {
+    setEditSlot(null);
+  }
+
   async function handleSaveSlot(slot) {
     const d = drafts[slot];
     if (!d?.botEmail?.trim()) {
       setError("Email do bot obrigatório.");
-      return;
+      return false;
     }
     setSavingSlot(slot);
     setError(null);
@@ -82,11 +130,20 @@ export default function AdminWorkersPage() {
       if (!res.ok) throw new Error(data.error || res.statusText);
       setMessage(`Bot slot ${slot} guardado.`);
       await loadWorkers();
+      return true;
     } catch (e) {
       setError(e.message);
+      return false;
     } finally {
       setSavingSlot(null);
     }
+  }
+
+  async function handleSaveSlotModal(e) {
+    e.preventDefault();
+    if (editSlot == null) return;
+    const ok = await handleSaveSlot(editSlot);
+    if (ok) closeSlotEdit();
   }
 
   async function handleSaveAdminKey(e) {
@@ -122,9 +179,7 @@ export default function AdminWorkersPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
       if (data.result?.buildPending) {
-        setMessage(
-          "Worker configurado — build Docker em curso no Railway."
-        );
+        setMessage("Worker configurado — build Docker em curso no Railway.");
       } else if (data.deployment?.status === "deployed") {
         setMessage("Worker provisionado e deploy iniciado.");
       } else {
@@ -139,188 +194,316 @@ export default function AdminWorkersPage() {
     }
   }
 
-  function deployStatusLabel(status) {
-    if (!status) return "Sem registo";
-    const map = {
-      pending: "Pendente",
-      provisioning: "A provisionar…",
-      configured: "Config OK / build pendente",
-      deployed: "Deploy OK",
-      failed: "Falhou",
-    };
-    return map[status] || status;
-  }
-
   const selectedTenant = tenants.find((t) => t.id === tenantId);
+  const editWorker = editSlot != null ? workers.find((w) => w.slot === editSlot) : null;
+  const botsConfigured = selectedTenant?.botsConfiguredCount ?? 0;
+  const botsTotal =
+    selectedTenant?.botsTotal ?? selectedTenant?.agent_slots_max ?? slotsMax;
 
   return (
     <AppSubpagePanel
-      className="users-page admin-workers-page"
+      className="users-page admin-workers-page admin-mgmt-page"
       eyebrow="Plataforma"
       title="Bots / Workers"
-      subtitle="Um container Docker por tenant; cada slot é um bot com email e API key Cursor."
+      subtitle="Container Docker por tenant — cada slot é um bot com email e API key Cursor"
+      headerActions={
+        selectedTenant ? (
+          <span className="admin-mgmt__quota" title="Bots configurados">
+            <FontAwesomeIcon icon={faRobot} aria-hidden />
+            {botsConfigured}/{botsTotal}
+          </span>
+        ) : null
+      }
     >
-      {error && <p className="msg msg--error">{error}</p>}
-      {message && <p className="msg msg--ok">{message}</p>}
+      <div className="admin-mgmt">
+        {(error || message) && (
+          <div className="admin-mgmt__alerts" role="status">
+            {error && <p className="msg msg--error">{error}</p>}
+            {message && <p className="msg msg--ok">{message}</p>}
+          </div>
+        )}
 
-      <label className="users-page__tenant-select">
-        Tenant
-        <select
-          value={tenantId}
-          onChange={(e) => setTenantId(e.target.value)}
-        >
-          {tenants.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name || t.email} ({t.botsConfiguredCount ?? 0}/
-              {t.botsTotal ?? t.agent_slots_max ?? "?"} bots)
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {loading ? (
-        <p className="msg msg--muted">Carregando…</p>
-      ) : (
-        <>
-          {selectedTenant && (
-            <section className="users-panel">
-              <h2>Worker Railway</h2>
-              <p className="msg msg--muted">
-                Deploy:{" "}
-                <strong>
-                  {deployStatusLabel(selectedTenant.workerDeployStatus)}
-                </strong>
-                {selectedTenant.workerStatus ? (
-                  <>
-                    {" "}
-                    · CLI: <strong>{selectedTenant.workerStatus}</strong>
-                  </>
-                ) : null}
-                {selectedTenant.railwayServiceId ? (
-                  <> · serviço {selectedTenant.railwayServiceId}</>
-                ) : null}
-              </p>
-              {selectedTenant.workerDeployError && (
-                <p className="msg msg--error">{selectedTenant.workerDeployError}</p>
-              )}
-              <button
-                type="button"
-                className="toolbar-btn"
-                disabled={provisioningWorker}
-                onClick={handleProvisionWorker}
-              >
-                {provisioningWorker ? "A provisionar…" : "Reprovisionar worker"}
-              </button>
-            </section>
-          )}
-
-          <section className="users-panel">
-            <h2>
-              Slots 1–{slotsMax}
-              {selectedTenant?.plan_id ? ` · plano ${selectedTenant.plan_id}` : ""}
-            </h2>
-            <div className="admin-workers-table-wrap">
-              <table className="users-table">
-                <thead>
-                  <tr>
-                    <th>Slot</th>
-                    <th>Email do bot</th>
-                    <th>API key worker</th>
-                    <th>Estado</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {workers.map((w) => (
-                    <tr key={w.slot}>
-                      <td>#{w.slot}</td>
-                      <td>
-                        <input
-                          type="email"
-                          value={drafts[w.slot]?.botEmail ?? ""}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [w.slot]: {
-                                ...prev[w.slot],
-                                botEmail: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="bot@empresa.com"
-                          autoComplete="off"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="password"
-                          value={drafts[w.slot]?.cursorWorkerApiKey ?? ""}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [w.slot]: {
-                                ...prev[w.slot],
-                                cursorWorkerApiKey: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder={
-                            w.hasWorkerApiKey
-                              ? "Nova key (opcional)"
-                              : "API key obrigatória"
-                          }
-                          autoComplete="off"
-                        />
-                      </td>
-                      <td>
-                        <span
-                          className={
-                            w.botReady
-                              ? "users-status users-status--ok"
-                              : "users-status users-status--warn"
-                          }
-                        >
-                          {w.botReady ? "Configurado" : "Pendente"}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="toolbar-btn"
-                          disabled={savingSlot === w.slot}
-                          onClick={() => handleSaveSlot(w.slot)}
-                        >
-                          {savingSlot === w.slot ? "…" : "Salvar"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <section className="admin-mgmt__company">
+          <div className="admin-mgmt__company-bar">
+            <div className="admin-mgmt__company-icon" aria-hidden>
+              <FontAwesomeIcon icon={faBuilding} />
             </div>
-          </section>
-
-          <section className="users-panel users-panel--keys">
-            <h2>Admin API key (tenant)</h2>
-            <p className="msg msg--muted">
-              Usada para billing Cursor (Admin API). Não é mostrada após salvar.
-            </p>
-            <form className="users-form-card" onSubmit={handleSaveAdminKey}>
-              <label>
-                Nova ADMIN key
-                <input
-                  type="password"
-                  value={tenantAdminKey}
-                  onChange={(e) => setTenantAdminKey(e.target.value)}
-                  autoComplete="off"
-                />
+            <div className="admin-mgmt__company-main">
+              <label className="admin-mgmt__field admin-mgmt__field--grow">
+                <span className="admin-mgmt__label">Empresa</span>
+                <GlassSelect
+                  wrapClassName="glass-select-wrap--fluid"
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                >
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name || t.email}
+                    </option>
+                  ))}
+                </GlassSelect>
               </label>
-              <button type="submit" className="toolbar-btn">
-                Salvar ADMIN key
+              {selectedTenant && (
+                <div className="admin-mgmt__chips">
+                  <span className="admin-mgmt__chip">
+                    Plano{" "}
+                    {PLAN_LABELS[selectedTenant.plan_id] ||
+                      selectedTenant.plan_id ||
+                      "—"}
+                  </span>
+                  <span className="admin-mgmt__chip admin-mgmt__chip--teal">
+                    {botsConfigured}/{botsTotal} bots
+                  </span>
+                  {selectedTenant.workerDeployStatus && (
+                    <span
+                      className={`admin-mgmt__chip admin-mgmt__chip--${deployStatusTone(
+                        selectedTenant.workerDeployStatus
+                      )}`}
+                    >
+                      Worker: {deployStatusLabel(selectedTenant.workerDeployStatus)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {loading ? (
+          <p className="msg msg--muted admin-mgmt__empty">Carregando…</p>
+        ) : (
+          <>
+            {selectedTenant && (
+              <section className="admin-mgmt__panel admin-mgmt__panel--worker">
+                <header className="admin-mgmt__panel-head">
+                  <div className="admin-mgmt__panel-intro">
+                    <h2 className="admin-mgmt__panel-title">
+                      <FontAwesomeIcon icon={faServer} aria-hidden />
+                      Worker Railway
+                    </h2>
+                    <p className="admin-mgmt__panel-desc">
+                      Container que executa os jobs do tenant na plataforma.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="toolbar-btn"
+                    disabled={provisioningWorker}
+                    onClick={handleProvisionWorker}
+                  >
+                    {provisioningWorker ? "A provisionar…" : "Reprovisionar worker"}
+                  </button>
+                </header>
+
+                <div className="admin-worker-status">
+                  <div className="admin-worker-status__row">
+                    <span className="admin-mgmt__label">Deploy</span>
+                    <span
+                      className={`admin-status admin-status--${deployStatusTone(
+                        selectedTenant.workerDeployStatus
+                      )}`}
+                    >
+                      {deployStatusLabel(selectedTenant.workerDeployStatus)}
+                    </span>
+                  </div>
+                  {selectedTenant.workerStatus && (
+                    <div className="admin-worker-status__row">
+                      <span className="admin-mgmt__label">CLI</span>
+                      <span className="admin-worker-status__value">
+                        {selectedTenant.workerStatus}
+                      </span>
+                    </div>
+                  )}
+                  {selectedTenant.railwayServiceId && (
+                    <div className="admin-worker-status__row">
+                      <span className="admin-mgmt__label">Serviço</span>
+                      <code className="admin-worker-status__code">
+                        {selectedTenant.railwayServiceId}
+                      </code>
+                    </div>
+                  )}
+                </div>
+
+                {selectedTenant.workerDeployError && (
+                  <p className="msg msg--error admin-worker-status__error">
+                    {selectedTenant.workerDeployError}
+                  </p>
+                )}
+              </section>
+            )}
+
+            <section className="admin-mgmt__panel">
+              <header className="admin-mgmt__panel-head">
+                <div className="admin-mgmt__panel-intro">
+                  <h2 className="admin-mgmt__panel-title">
+                    <FontAwesomeIcon icon={faRobot} aria-hidden />
+                    Bots · slots 1–{slotsMax}
+                  </h2>
+                  <p className="admin-mgmt__panel-desc">
+                    Cada slot corresponde a um bot Cursor com email e API key próprios.
+                  </p>
+                </div>
+              </header>
+
+              <div className="admin-bot-grid">
+                {workers.map((w) => (
+                  <article
+                    key={w.slot}
+                    className={`admin-bot-card${
+                      w.botReady ? " admin-bot-card--ready" : ""
+                    }`}
+                  >
+                    <header className="admin-bot-card__head">
+                      <span className="admin-bot-card__slot">Slot #{w.slot}</span>
+                      <span
+                        className={`admin-status admin-status--${
+                          w.botReady ? "ok" : "warn"
+                        }`}
+                      >
+                        {w.botReady ? "Configurado" : "Pendente"}
+                      </span>
+                    </header>
+                    <div className="admin-bot-card__body">
+                      <p className="admin-bot-card__email">
+                        {drafts[w.slot]?.botEmail?.trim() ||
+                          w.botEmail ||
+                          "Sem email configurado"}
+                      </p>
+                      <p className="admin-bot-card__meta">
+                        API key worker:{" "}
+                        {w.hasWorkerApiKey ? "Configurada" : "Pendente"}
+                      </p>
+                    </div>
+                    <footer className="admin-bot-card__footer">
+                      <button
+                        type="button"
+                        className="toolbar-btn toolbar-btn--primary admin-bot-card__btn"
+                        onClick={() => openSlotEdit(w.slot)}
+                      >
+                        <FontAwesomeIcon icon={faPen} aria-hidden />
+                        Configurar
+                      </button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="admin-mgmt__panel admin-mgmt__panel--keys">
+              <header className="admin-mgmt__panel-head">
+                <div className="admin-mgmt__panel-intro">
+                  <h2 className="admin-mgmt__panel-title">
+                    <FontAwesomeIcon icon={faKey} aria-hidden />
+                    Admin API key
+                  </h2>
+                  <p className="admin-mgmt__panel-desc">
+                    Usada para billing Cursor (Admin API). Não é mostrada após salvar.
+                  </p>
+                </div>
+              </header>
+              <form className="admin-form-card admin-form-card--inline" onSubmit={handleSaveAdminKey}>
+                <div className="admin-form-card__grid admin-form-card__grid--single">
+                  <label className="admin-mgmt__field">
+                    <span className="admin-mgmt__label">Nova ADMIN key</span>
+                    <input
+                      className="admin-mgmt__input"
+                      type="password"
+                      value={tenantAdminKey}
+                      onChange={(e) => setTenantAdminKey(e.target.value)}
+                      autoComplete="off"
+                      placeholder="sk-…"
+                    />
+                  </label>
+                </div>
+                <footer className="admin-form-card__footer">
+                  <button type="submit" className="toolbar-btn toolbar-btn--primary">
+                    Salvar ADMIN key
+                  </button>
+                </footer>
+              </form>
+            </section>
+          </>
+        )}
+      </div>
+
+      {editSlot != null && editWorker && (
+        <AppModal
+          variant="form"
+          panelClassName="admin-modal"
+          eyebrow="Bots"
+          title={`Configurar bot · slot #${editSlot}`}
+          titleId="edit-bot-title"
+          subtitle={
+            editWorker.botReady
+              ? "Bot configurado — altere email ou API key se necessário"
+              : "Preencha email e API key para ativar este slot"
+          }
+          onClose={closeSlotEdit}
+        >
+          <form className="admin-modal__form" onSubmit={handleSaveSlotModal}>
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">Email do bot</span>
+              <input
+                className="admin-mgmt__input"
+                type="email"
+                value={drafts[editSlot]?.botEmail ?? ""}
+                onChange={(e) =>
+                  setDrafts((prev) => ({
+                    ...prev,
+                    [editSlot]: {
+                      ...prev[editSlot],
+                      botEmail: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="bot@empresa.com"
+                autoComplete="off"
+                required
+                autoFocus
+              />
+            </label>
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">API key worker</span>
+              <input
+                className="admin-mgmt__input"
+                type="password"
+                value={drafts[editSlot]?.cursorWorkerApiKey ?? ""}
+                onChange={(e) =>
+                  setDrafts((prev) => ({
+                    ...prev,
+                    [editSlot]: {
+                      ...prev[editSlot],
+                      cursorWorkerApiKey: e.target.value,
+                    },
+                  }))
+                }
+                placeholder={
+                  editWorker.hasWorkerApiKey
+                    ? "Nova key (opcional)"
+                    : "API key obrigatória"
+                }
+                autoComplete="off"
+              />
+              <span className="admin-mgmt__hint">
+                {editWorker.hasWorkerApiKey
+                  ? "Deixe vazio para manter a key atual"
+                  : "Obrigatória na primeira configuração"}
+              </span>
+            </label>
+            <footer className="admin-modal__footer">
+              <button type="button" className="toolbar-btn" onClick={closeSlotEdit}>
+                Cancelar
               </button>
-            </form>
-          </section>
-        </>
+              <button
+                type="submit"
+                className="toolbar-btn toolbar-btn--primary"
+                disabled={savingSlot === editSlot}
+              >
+                {savingSlot === editSlot ? "A guardar…" : "Salvar bot"}
+              </button>
+            </footer>
+          </form>
+        </AppModal>
       )}
     </AppSubpagePanel>
   );

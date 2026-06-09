@@ -6,7 +6,7 @@ import {
 } from "../lib/railwayPublish.js";
 
 /**
- * Estado e acções de publicação Railway para projectos concluídos.
+ * Estado e acções de publicação Railway para projetos concluídos.
  * @param {string|null|undefined} projectSlug
  */
 export function useRailwayPublish(projectSlug) {

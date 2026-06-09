@@ -120,7 +120,7 @@ export default function ExecutionLogPanel() {
     : r.hasLog
       ? ""
       : r.selectedSlot
-        ? `Sem registo para o bot #${r.selectedSlot} neste projecto.`
+        ? `Sem registo para o bot #${r.selectedSlot} neste projeto.`
         : "Clique num bot para ver o registo, ou use ▶ para iniciar.";
 
   return (

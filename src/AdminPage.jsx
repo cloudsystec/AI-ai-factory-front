@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 import { AGENT_ROLE_KEYS } from "./agentRoleKeys.js";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
+import GlassSelect from "./components/GlassSelect.jsx";
 
 /**
  * Admin plataforma — templates e overrides de agentes.
@@ -135,73 +136,55 @@ export default function AdminPage() {
       <div className="admin-page__toolbar">
         <label className="admin-page__field">
           <span className="admin-page__label">Modo</span>
-          <div className="glass-select-wrap">
-            <select
-              className="glass-select"
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-            >
-              <option value="templates">Templates plataforma</option>
-              <option value="project">Overrides por projeto</option>
-            </select>
-          </div>
+          <GlassSelect value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="templates">Templates plataforma</option>
+            <option value="project">Overrides por projeto</option>
+          </GlassSelect>
         </label>
         {mode === "project" && (
           <>
             <label className="admin-page__field">
               <span className="admin-page__label">Tenant</span>
-              <div className="glass-select-wrap">
-                <select
-                  className="glass-select"
-                  value={tenantId}
-                  onChange={(e) => setTenantId(e.target.value)}
-                >
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name || t.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <GlassSelect
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+              >
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name || t.email}
+                  </option>
+                ))}
+              </GlassSelect>
             </label>
             <label className="admin-page__field">
               <span className="admin-page__label">Projeto</span>
-              <div className="glass-select-wrap">
-                <select
-                  className="glass-select"
-                  value={projectSlug}
-                  onChange={(e) => setProjectSlug(e.target.value)}
-                  disabled={projects.length === 0}
-                >
-                  {projects.length === 0 ? (
-                    <option value="">Sem projetos</option>
-                  ) : (
-                    projects.map((p) => (
-                      <option key={p.slug} value={p.slug}>
-                        {p.slug}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+              <GlassSelect
+                value={projectSlug}
+                onChange={(e) => setProjectSlug(e.target.value)}
+                disabled={projects.length === 0}
+              >
+                {projects.length === 0 ? (
+                  <option value="">Sem projetos</option>
+                ) : (
+                  projects.map((p) => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.slug}
+                    </option>
+                  ))
+                )}
+              </GlassSelect>
             </label>
           </>
         )}
         <label className="admin-page__field">
           <span className="admin-page__label">Role</span>
-          <div className="glass-select-wrap">
-            <select
-              className="glass-select"
-              value={roleKey}
-              onChange={(e) => setRoleKey(e.target.value)}
-            >
-              {AGENT_ROLE_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
+          <GlassSelect value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
+            {AGENT_ROLE_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </GlassSelect>
         </label>
         {mode === "project" && projectSlug && (
           <button type="button" className="toolbar-btn" onClick={handleReset}>
