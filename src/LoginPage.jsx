@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 import BrandLogo from "./components/BrandLogo.jsx";
 import AppGlassLayout from "./components/AppGlassLayout.jsx";
@@ -111,6 +111,11 @@ export default function LoginPage({ onLoggedIn }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const prefill = new URLSearchParams(window.location.search).get("email")?.trim();
+    if (prefill) setEmail(prefill);
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
