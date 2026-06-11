@@ -1,5 +1,6 @@
 export {
   PIPELINE_STEPS,
+  getPipelineStepsForTask,
   getActiveStepIndex,
   getStepVisualState,
   isPipelineRunning,

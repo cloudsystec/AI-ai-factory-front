@@ -1359,6 +1359,230 @@ body.app-body {
   border-color: rgba(20, 184, 166, 0.22);
 }
 
+.modal-panel--discovery {
+  max-width: min(1040px, 96vw);
+}
+
+.modal-panel--discovery .modal-panel__body.project-discovery-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(72vh, 640px);
+  overflow: hidden;
+}
+
+.project-discovery-layout__grid {
+  display: grid;
+  grid-template-columns: min(300px, 38%) 1fr;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.project-discovery-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(8, 16, 38, 0.25);
+  overflow: hidden;
+}
+
+.project-discovery-decisions {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 12px 0;
+  overflow: hidden;
+}
+
+.project-discovery-decisions__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-right: -2px;
+}
+
+.project-discovery-sidebar__footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 16, 38, 0.45);
+}
+
+.project-discovery-sidebar__preview {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
+.project-discovery-sidebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-discovery-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 12px 0;
+  background: rgba(8, 16, 38, 0.35);
+  overflow: hidden;
+}
+
+.project-discovery-chat__head {
+  flex-shrink: 0;
+}
+
+.project-discovery-chat__hint {
+  flex-shrink: 0;
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+.project-discovery-chat__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-discovery-chat__messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-discovery-chat__composer {
+  flex-shrink: 0;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 16, 38, 0.45);
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.project-discovery-chat__error {
+  margin: 0 0 8px;
+}
+
+.project-discovery-chat__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-discovery-chat__input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  max-height: 120px;
+}
+
+.project-discovery-chat__send {
+  align-self: flex-end;
+}
+
+.project-discovery-decisions__head {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.project-discovery-decisions__eyebrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin: 0 0 4px;
+}
+
+.project-discovery-decisions__progress {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.project-discovery-decisions__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-discovery-decisions__item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.project-discovery-decisions__item--done {
+  color: #e2e8f0;
+}
+
+.project-discovery-decisions__check {
+  flex-shrink: 0;
+  width: 1.2rem;
+  text-align: center;
+}
+
+.project-discovery-decisions__value {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.project-discovery-decisions__summary {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.85rem;
+}
+
+.project-discovery-decisions__ready {
+  color: #34d399;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 768px) {
+  .modal-panel--discovery .modal-panel__body.project-discovery-layout {
+    max-height: none;
+  }
+
+  .project-discovery-layout__grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(200px, 34vh) 1fr;
+  }
+
+  .project-discovery-sidebar {
+    max-height: 34vh;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay,
   .modal-panel,

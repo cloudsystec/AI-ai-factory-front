@@ -79,6 +79,25 @@ export default function MicrosDetailModal({
                 </p>
               )}
 
+              {(m.acceptance?.length > 0 || m.testStrategy) && (
+                <div className="micro-card__qa">
+                  <strong>Critérios QA</strong>
+                  {m.acceptance?.length > 0 && (
+                    <ul className="micro-card__acceptance">
+                      {m.acceptance.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {m.testStrategy && (
+                    <p className="micro-card__test-strategy">
+                      <strong>Testes:</strong>{" "}
+                      <code>{m.testStrategy}</code>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="micro-card__meta">
                 {m.poScore != null && (
                   <span className="micro-card__score">PO Score: {m.poScore}</span>
@@ -97,6 +116,11 @@ export default function MicrosDetailModal({
                       <span className={`micro-card__task-status micro-card__task-status--${t.status}`}>
                         {taskStatusLabel(t.status)}
                       </span>
+                      {t.isMicroCloser && (
+                        <span className="micro-card__task-closer" title="Task de fechamento (QA do micro)">
+                          Fechamento
+                        </span>
+                      )}
                       <span className="micro-card__task-title">{t.title}</span>
                     </li>
                   ))}

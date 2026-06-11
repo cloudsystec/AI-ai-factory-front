@@ -38,15 +38,18 @@ function inferColumnFromAgent(task) {
   if (agent === "Human Approval Pending") return "human_approval";
   if (agent.includes("Planner")) return "development";
   if (agent.includes("Dev")) return "development";
-  if (agent.includes("QA") || agent.includes("Test")) return "testing";
-  if (agent.includes("Reviewer")) return "testing";
+  if (task.isMicroCloser && (agent.includes("QA") || agent.includes("Test"))) {
+    return "testing";
+  }
+  if (task.isMicroCloser && agent.includes("Reviewer")) return "testing";
   if (agent === "Done") return "done";
   return null;
 }
 
 function inferColumnFromLastStep(task) {
   const step = task.lastCompletedStep;
-  if (step && PAUSE_STEP_TO_COLUMN[step]) {
+  if (step === "dev" && !task.isMicroCloser) return "development";
+  if (step && task.isMicroCloser && PAUSE_STEP_TO_COLUMN[step]) {
     return PAUSE_STEP_TO_COLUMN[step];
   }
   if (step === "dev") return "development";

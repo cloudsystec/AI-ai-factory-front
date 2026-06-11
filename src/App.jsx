@@ -3,7 +3,7 @@ import "./App.css";
 import "./styles/dashboard-app.css";
 import "./styles/project-copilot.css";
 import {
-  PIPELINE_STEPS,
+  getPipelineStepsForTask,
   getStepVisualState,
   isPipelineRunning,
 } from "./pipeline.js";
@@ -118,12 +118,13 @@ function isCompactDoneTask(task) {
 }
 
 function PipelineTrack({ task, dimmed }) {
+  const steps = getPipelineStepsForTask(task);
   return (
     <div
       className={`pipeline-track${dimmed ? " pipeline-track--dimmed" : ""}`}
       aria-label="Progresso do pipeline de desenvolvimento"
     >
-      {PIPELINE_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const visual = getStepVisualState(task, i);
         const classes = [
           "pipeline-step",

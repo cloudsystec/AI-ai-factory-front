@@ -65,17 +65,10 @@ const KANBAN_COLUMNS = [
 
 
 const MODAL_STEPS = new Set([
-
   "fill_project",
-
-  "macro_help_open",
-
-  "macro_help_compose",
-
-  "macro_help_send",
-
+  "discovery_compose",
+  "discovery_send",
   "submit_project",
-
 ]);
 
 
@@ -703,55 +696,20 @@ function TutorialFlowInner({
       {showNewProjectModal && (
 
         <NewProjectModal
-
           tutorialMode
-
           onClose={() => {}}
-
           onCreated={() => {}}
-
           onTutorialSubmit={handleTutorialSubmit}
-
-          onTutorialDrawerOpen={handleMacroHelpDrawerOpen}
-
           onMacroHelpInteraction={handleMacroHelpUsed}
-
-          initialScope={draftScope}
-
-          onScopeDraftChange={setDraftScope}
-
-          openMacroHelpOnMount={
-
-            currentStep.id === "macro_help_compose" ||
-
-            currentStep.id === "macro_help_send"
-
-          }
-
           submitTutorialTarget="submit-project"
-
-          macroHelpTriggerTutorialTarget={
-
-            currentStep.id === "macro_help_open" ? "macro-help-trigger" : undefined
-
+          discoveryInputTutorialTarget={
+            currentStep.id === "discovery_compose" ? "discovery-input" : undefined
           }
-
-          macroHelpInputTutorialTarget={
-
-            currentStep.id === "macro_help_compose" ? "macro-help-input" : undefined
-
+          discoverySendTutorialTarget={
+            currentStep.id === "discovery_send" ? "discovery-send" : undefined
           }
-
-          macroHelpSendTutorialTarget={
-
-            currentStep.id === "macro_help_send" ? "macro-help-send" : undefined
-
-          }
-
           tutorialAutoTypeSignal={autoTypeSignal}
-
           onTutorialAutoTypeComplete={onAutoTypeComplete}
-
         />
 
       )}
@@ -819,21 +777,23 @@ export default function TutorialExperience({ onFinish, onLogout }) {
     () => ({
 
       macro_help_compose: (advance) =>
-
         new Promise((resolve) => {
-
           autoTypeResolverRef.current = () => {
-
             autoTypeResolverRef.current = null;
-
             advance();
-
             resolve();
-
           };
-
           setAutoTypeSignal((n) => n + 1);
+        }),
 
+      discovery_compose: (advance) =>
+        new Promise((resolve) => {
+          autoTypeResolverRef.current = () => {
+            autoTypeResolverRef.current = null;
+            advance();
+            resolve();
+          };
+          setAutoTypeSignal((n) => n + 1);
         }),
 
       macro_detail_modal: (advance) => {
