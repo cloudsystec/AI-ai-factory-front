@@ -13,6 +13,7 @@ import {
   faBan,
 } from "@fortawesome/free-solid-svg-icons";
 import ExecutionLogPanel from "./ExecutionLogPanel.jsx";
+import { resolveKanbanColumn } from "../lib/kanban-column.js";
 
 const COLUMN_STYLE = {
   todo: {
@@ -107,8 +108,11 @@ export default function CommandCenter({
   disabled,
   emptyHint,
 }) {
+  const columnKeys = columns.map((c) => c.key);
+  const columnFor = (task) => resolveKanbanColumn(task, columnKeys);
+
   const activeCount = tasks.filter(
-    (t) => getKanbanColumn(t) !== "done" && getKanbanColumn(t) !== "blocked"
+    (t) => columnFor(t) !== "done" && columnFor(t) !== "blocked"
   ).length;
 
   return (
@@ -143,7 +147,7 @@ export default function CommandCenter({
       >
         {columns.map((column) => {
           const colTasks = tasks.filter(
-            (task) => getKanbanColumn(task) === column.key
+            (task) => columnFor(task) === column.key
           );
           const style = COLUMN_STYLE[column.key] || COLUMN_STYLE.todo;
 

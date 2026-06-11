@@ -128,25 +128,7 @@ function normalizeAgent(agent) {
 
 
 
-function getKanbanColumn(task) {
-
-  if (task.status === "blocked" || task.blockReason) return "blocked";
-
-  if (normalizeAgent(task.currentAgent) === "Human Approval Pending") {
-
-    return "human_approval";
-
-  }
-
-  if (task.status === "done") return "done";
-
-  if (task.status === "planning") return "development";
-
-  if (task.status === "review") return "testing";
-
-  return task.status;
-
-}
+import { getKanbanColumn } from "../lib/kanban-column.js";
 
 
 

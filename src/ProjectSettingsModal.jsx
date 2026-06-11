@@ -75,7 +75,8 @@ export default function ProjectSettingsModal({
     ["provisioning", "failed", "ready"].includes(
       gitDisconnect.status?.phase || ""
     );
-  const actionsBlocked = resetting || runningCount > 0;
+  const actionsBlocked = resetting;
+  const deleteBlocked = resetting || runningCount > 0;
   const gitBusy = gitDisconnect.busy || gitDisconnect.loading;
 
   const repo = showGitUi ? projectMeta?.repoFullName || "" : "";
@@ -296,7 +297,8 @@ export default function ProjectSettingsModal({
             <h3 className="project-settings-modal__section-title">Zona de risco</h3>
             {runningCount > 0 && (
               <p className="msg msg--muted">
-                Aguarde o fim das tarefas em execução antes de resetar ou deletar.
+                Há tarefas em execução. O reset pode cancelá-las automaticamente; a
+                eliminação permanente continua bloqueada até terminarem.
               </p>
             )}
             <div className="project-settings-modal__danger-actions">
@@ -308,8 +310,8 @@ export default function ProjectSettingsModal({
                   onClick={() => onResetProject()}
                   title={
                     runningCount > 0
-                      ? "Aguarde o fim das tarefas em execução"
-                      : "Reset projeto"
+                      ? "Cancela jobs activos e repõe o projecto a zero"
+                      : "Reset projecto"
                   }
                 >
                   <FontAwesomeIcon icon={faRotateLeft} />
@@ -320,7 +322,7 @@ export default function ProjectSettingsModal({
                 <button
                   type="button"
                   className="toolbar-btn toolbar-btn--danger project-settings-modal__action-btn"
-                  disabled={actionsBlocked}
+                  disabled={deleteBlocked}
                   onClick={() => onDeleteProject()}
                   title="Deletar projeto permanentemente"
                 >

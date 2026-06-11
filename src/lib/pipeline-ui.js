@@ -20,6 +20,13 @@ export function getActiveStepIndex(task) {
 
   if (status === "done") return 5;
   if (status === "review") return 4;
+  if (status === "running" || status === "in_progress") {
+    if (agent.includes("QA")) return 3;
+    if (agent.includes("Dev") || agent.includes("Planner")) return 1;
+    if (task.lastCompletedStep === "qa") return 4;
+    if (task.lastCompletedStep === "dev") return 2;
+    return 1;
+  }
   if (status === "testing") {
     if (agent.includes("QA")) return 3;
     return 2;
@@ -60,7 +67,14 @@ export function getStepVisualState(task, stepIndex) {
  */
 export function isPipelineRunning(task) {
   if (!task || task.status === "blocked") return false;
-  return ["planning", "development", "testing", "review"].includes(task.status);
+  return [
+    "in_progress",
+    "running",
+    "planning",
+    "development",
+    "testing",
+    "review",
+  ].includes(task.status);
 }
 
 /**

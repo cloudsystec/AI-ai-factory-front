@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import "./styles/dashboard-app.css";
+import "./styles/project-copilot.css";
 import {
   PIPELINE_STEPS,
   getStepVisualState,
@@ -40,6 +41,7 @@ import {
 } from "./lib/projectGit.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import { useSocket } from "./useSocket.jsx";
+import ProjectCopilotWidget from "./components/ProjectCopilotWidget.jsx";
 
 const columns = [
   { key: "todo", title: "A fazer", icon: "📥" },
@@ -105,36 +107,10 @@ function friendlyAgent(agent) {
   return AGENT_LABELS[key] || key || "—";
 }
 
-const PAUSE_STEP_TO_COLUMN = {
-  dev: "testing",
-  qa: "done",
-};
-
-/** Coluna Kanban (pode divergir de `status` quando `status` é done). */
-function getKanbanColumn(task) {
-  if (task.blockReason === "infra" && task.failedStep === "finalize") {
-    return "testing";
-  }
-  if (task.status === "blocked" || task.blockReason) {
-    return "blocked";
-  }
-  if (task.status === "paused") {
-    return PAUSE_STEP_TO_COLUMN[task.lastCompletedStep] || "development";
-  }
-  if (normalizeAgent(task.currentAgent) === "Human Approval Pending") {
-    return "human_approval";
-  }
-  if (task.status === "done") {
-    return "done";
-  }
-  if (task.status === "planning") {
-    return "development";
-  }
-  if (task.status === "review") {
-    return "testing";
-  }
-  return task.status;
-}
+import {
+  getKanbanColumn,
+  resolveKanbanColumn,
+} from "./lib/kanban-column.js";
 
 /** Vista mínima na coluna Concluído após aprovação humana (currentAgent = "Done"). */
 function isCompactDoneTask(task) {
@@ -399,6 +375,7 @@ export default function App({ onLogout }) {
   const [appView, setAppView] = useState("dashboard");
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
+  const [resetOfferForceStop, setResetOfferForceStop] = useState(false);
   const [resetNotice, setResetNotice] = useState(null);
   const [showScopeDetail, setShowScopeDetail] = useState(false);
   const [showMicrosDetail, setShowMicrosDetail] = useState(false);
@@ -517,6 +494,7 @@ export default function App({ onLogout }) {
       setTaskPullRequests({});
       setDevelopSettingsError(null);
       setResetError(null);
+      setResetOfferForceStop(false);
       setResetNotice(null);
       return;
     }
@@ -532,27 +510,40 @@ export default function App({ onLogout }) {
     return () => { clearInterval(fallback); unsub(); };
   }, [selectedProject, loadDashboardData, subscribe]);
 
-  const handleResetProject = useCallback(async () => {
+  const handleResetProject = useCallback(async (opts = {}) => {
     if (!selectedProject || resetting) return;
+    const forceStop = opts.forceStop === true;
     const ok = window.confirm(
-      `Restaurar o projeto "${selectedProject}" ao zero?\n\n` +
+      (forceStop
+        ? `Forçar parada dos jobs e resetar "${selectedProject}"?\n\n` +
+          "• Cancela jobs em execução ou na fila\n" +
+          "• Pausa bots activos\n\n"
+        : `Restaurar o projeto "${selectedProject}" ao zero?\n\n`) +
         "• Cria backup ZIP em data/tenants/.../BACKUP/<data>/ (workspace, macro, código, relatórios)\n" +
-        "• Apaga o workspace atual no CLI e restaura só o escopo macro da BD\n" +
+        "• Apaga o workspace actual no CLI e restaura só o escopo macro da BD\n" +
         "• Limpa micros, tarefas e snapshot do painel\n\n" +
-        "Esta ação não pode ser desfeita (só recuperável pelo ZIP de backup)."
+        "Esta acção não pode ser desfeita (só recuperável pelo ZIP de backup)."
     );
     if (!ok) return;
 
     setResetting(true);
     setResetError(null);
+    setResetOfferForceStop(false);
     setResetNotice(null);
     try {
       const res = await apiFetch(
         `/api/projects/${encodeURIComponent(selectedProject)}/reset`,
-        { method: "POST" }
+        {
+          method: "POST",
+          body: JSON.stringify({ forceStop }),
+        }
       );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || res.statusText);
+      if (!res.ok) {
+        const err = new Error(data.error || res.statusText);
+        err.code = data.code;
+        throw err;
+      }
       setDetailTaskId(null);
       const rel = data.backup?.backupRelative;
       setResetNotice(
@@ -563,6 +554,9 @@ export default function App({ onLogout }) {
       await loadDashboardData();
     } catch (e) {
       setResetError(e.message || String(e));
+      if (e.code === "JOB_ACTIVE") {
+        setResetOfferForceStop(true);
+      }
     } finally {
       setResetting(false);
     }
@@ -865,7 +859,19 @@ export default function App({ onLogout }) {
                 <div className="dashboard-alerts" role="status">
                   {resetNotice && <p className="msg msg--ok">{resetNotice}</p>}
                   {resetError && (
-                    <p className="msg msg--error">{resetError}</p>
+                    <div className="dashboard-alerts__reset-error">
+                      <p className="msg msg--error">{resetError}</p>
+                      {resetOfferForceStop && caps.canWrite && (
+                        <button
+                          type="button"
+                          className="toolbar-btn toolbar-btn--danger"
+                          disabled={resetting}
+                          onClick={() => handleResetProject({ forceStop: true })}
+                        >
+                          Forçar parada e resetar
+                        </button>
+                      )}
+                    </div>
                   )}
                   {githubNotice && (
                     <p className="msg msg--error">{githubNotice}</p>
@@ -1058,6 +1064,18 @@ export default function App({ onLogout }) {
           openMicro={scopeState.openMicro}
           detail={scopeState.openMicroTasksDetail}
           onClose={() => setShowTasksDetail(false)}
+        />
+      )}
+
+      {selectedProject && appView === "dashboard" && (
+        <ProjectCopilotWidget
+          projectSlug={selectedProject}
+          projectName={
+            typeof selectedProjectMeta === "object"
+              ? selectedProjectMeta?.name || selectedProject
+              : selectedProject
+          }
+          onRefresh={loadDashboardData}
         />
       )}
       </RunnerExecutionProvider>
