@@ -202,7 +202,6 @@ export default function CommandCenter({
       <div
         className="flex gap-3 overflow-hidden flex-shrink-0 mt-auto"
         id="center-lower"
-        style={{ height: "190px" }}
       >
         <ExecutionLogPanel />
       </div>

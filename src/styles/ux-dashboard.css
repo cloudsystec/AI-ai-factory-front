@@ -282,6 +282,10 @@
         }
 
         /* ── Left sidebar ── */
+        .sidebar-left,
+        #sidebar-left {
+            width: var(--motor-width-full);
+        }
         .sidebar-left {
             background: linear-gradient(180deg, rgba(8,16,42,0.98) 0%, rgba(5,10,28,0.99) 100%);
             border: 1px solid rgba(20,184,166,0.12);
@@ -296,7 +300,7 @@
         /* ── Right sidebar — now full height ── */
         .sidebar-right,
         .metrics-sidebar {
-            width: 480px;
+            width: var(--metrics-width-full);
             min-width: 0;
             background: linear-gradient(180deg, rgba(8,16,42,0.98) 0%, rgba(5,10,28,0.99) 100%);
             border: 1px solid rgba(255,255,255,0.07);
@@ -950,15 +954,11 @@
         .font-display { font-family: 'Sora', sans-serif; }
 
         /* ── Responsive ── */
-        @media (max-width: 1280px) {
-            #sidebar-left { width: 64px !important; }
-            #sidebar-left .bot-label-text { display: none; }
-            #sidebar-right, .metrics-sidebar { width: 400px !important; }
+        @media (max-width: 1400px) {
+            #sidebar-right, .metrics-sidebar { width: var(--metrics-width-md) !important; }
         }
         @media (max-width: 1024px) {
-            #sidebar-left { width: 64px !important; }
-            #sidebar-left .bot-label-text { display: none; }
-            #sidebar-right, .metrics-sidebar { width: 360px !important; }
+            #sidebar-right, .metrics-sidebar { width: var(--metrics-width-sm) !important; }
             .metric-card-ux__body--cost,
             .metric-card-ux__body--pool {
                 grid-template-columns: 1fr 1fr;
@@ -969,7 +969,23 @@
             }
         }
         @media (max-width: 768px) {
-            #sidebar-left { display: none; }
-            #sidebar-right { display: none; }
             #center-lower { flex-direction: column !important; }
+            .ux-dashboard--mobile #sidebar-left,
+            .ux-dashboard--mobile #sidebar-right {
+                width: 100% !important;
+                max-width: none !important;
+            }
+            .ux-dashboard--mobile #sidebar-left .bot-label-text {
+                display: inline;
+            }
+            .dashboard-panel--hidden {
+                display: none !important;
+            }
+            .ux-dashboard--mobile .dashboard-panel--motor,
+            .ux-dashboard--mobile .dashboard-panel--metrics {
+                flex: 1 1 auto;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
         }

@@ -352,3 +352,36 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .tutorial-banner {
+    font-size: 0.6875rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .tutorial-tooltip {
+    max-width: calc(100vw - 24px);
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+  }
+
+  .tutorial-tooltip__title {
+    font-size: 0.9375rem;
+  }
+
+  .tutorial-tooltip__body {
+    font-size: 0.8125rem;
+  }
+
+  .tutorial-stage-hint {
+    max-width: calc(100vw - 24px);
+    font-size: 0.8125rem;
+  }
+
+  .tutorial-skip-fixed {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    font-size: 0.6875rem;
+    padding: 0.45rem 0.75rem;
+  }
+}

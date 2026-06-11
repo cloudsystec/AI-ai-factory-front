@@ -1,10 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
+import useMediaQuery from "../hooks/useMediaQuery.js";
+import MobileDashboardTabs from "../components/MobileDashboardTabs.jsx";
 
 export default function DashboardShell({ topBar, motor, center, metrics }) {
   const isDashboard = Boolean(motor || metrics);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const showMobileTabs = isDashboard && isMobile;
+  const [activePanel, setActivePanel] = useState("kanban");
+
+  const shellClass = `ux-dashboard text-slate-200 relative overflow-x-hidden min-h-screen${showMobileTabs ? " ux-dashboard--mobile" : ""}`;
+
+  const panelClass = (panel) => {
+    if (!showMobileTabs) return "";
+    return activePanel === panel ? "" : " dashboard-panel--hidden";
+  };
 
   return (
-    <div className="ux-dashboard text-slate-200 relative overflow-x-hidden min-h-screen">
+    <div className={shellClass}>
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
@@ -36,25 +48,36 @@ export default function DashboardShell({ topBar, motor, center, metrics }) {
 
       <div
         className="relative z-10 flex flex-col w-full"
-        style={{ height: "100vh", minHeight: 0 }}
+        style={{ height: "100dvh", minHeight: 0 }}
       >
-      <div className="dashboard-header-slot relative z-50 flex-shrink-0">
-        {topBar}
-      </div>
+        <div className="dashboard-header-slot relative z-50 flex-shrink-0">
+          {topBar}
+        </div>
         <div
-          className={`flex-1 flex gap-3 px-4 pb-3 overflow-hidden items-stretch relative z-0${isDashboard ? "" : " app-shell__content--full"}`}
+          className={`flex-1 flex gap-3 px-4 pb-3 overflow-hidden items-stretch relative z-0${isDashboard ? "" : " app-shell__content--full"}${showMobileTabs ? " dashboard-main-body--tabs" : ""}`}
           id="main-body"
           style={{ minHeight: 0 }}
         >
-          {motor}
+          {motor ? (
+            <div className={`dashboard-panel--motor flex-shrink-0${panelClass("motor")}`}>
+              {motor}
+            </div>
+          ) : null}
           <main
-            className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0"
+            className={`flex-1 flex flex-col overflow-hidden min-w-0 min-h-0${panelClass("kanban")}`}
             id={isDashboard ? "kanban-center" : "app-subpage-center"}
           >
             {center}
           </main>
-          {metrics}
+          {metrics ? (
+            <div className={`dashboard-panel--metrics flex-shrink-0${panelClass("metrics")}`}>
+              {metrics}
+            </div>
+          ) : null}
         </div>
+        {showMobileTabs ? (
+          <MobileDashboardTabs activePanel={activePanel} onPanelChange={setActivePanel} />
+        ) : null}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheck,
   faChevronDown,
+  faBars,
   faFolder,
   faFolderOpen,
   faPlus,
@@ -179,7 +180,9 @@ export default function DashboardTopBar({
   pipelineStepTutorialTargets = null,
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const overflowRef = useRef(null);
 
   const showGitUi = isClientGitConnected(selectedProjectMeta);
   const preparing = isWorkspacePreparing(selectedProjectMeta);
@@ -195,17 +198,38 @@ export default function DashboardTopBar({
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
       }
+      if (overflowRef.current && !overflowRef.current.contains(e.target)) {
+        setOverflowOpen(false);
+      }
     }
-    if (dropdownOpen) {
+    if (dropdownOpen || overflowOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
     return undefined;
-  }, [dropdownOpen]);
+  }, [dropdownOpen, overflowOpen]);
+
+  const overflowItems = [
+    (canManageUsers || isPlatformAdmin) && onUsers
+      ? { key: "users", label: "Usuários", onClick: onUsers, active: activeView === "users" }
+      : null,
+    canExecute && onAgents
+      ? { key: "agents", label: "Agentes", onClick: onAgents, active: activeView === "agents" }
+      : null,
+    isPlatformAdmin && onAdminWorkers
+      ? { key: "adminWorkers", label: "Bots", onClick: onAdminWorkers, active: activeView === "adminWorkers" }
+      : null,
+    isPlatformAdmin && onAdmin
+      ? { key: "admin", label: "Admin", onClick: onAdmin, active: activeView === "admin" }
+      : null,
+    onLogout
+      ? { key: "logout", label: "Sair", onClick: onLogout, active: false }
+      : null,
+  ].filter(Boolean);
 
   return (
     <header
-      className="glass-panel mx-4 mt-3 mb-2 rounded-2xl flex items-center justify-between px-7 py-3 flex-shrink-0 relative overflow-visible"
+      className="glass-panel mx-2 md:mx-4 mt-3 mb-2 rounded-2xl flex items-center justify-between px-4 md:px-7 py-3 flex-shrink-0 relative overflow-visible gap-2"
       id="header"
     >
       <div className="shimmer-line" aria-hidden />
@@ -224,23 +248,23 @@ export default function DashboardTopBar({
         onClick={onHome}
         aria-label="Ir para o dashboard"
       >
-        <BrandLogo variant="symbol" className="w-9 h-9" />
-        <div>
-          <h1 className="text-dash-heading font-bold tracking-wide brand-text leading-tight">
+        <BrandLogo variant="symbol" className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0" />
+        <div className="min-w-0 hidden sm:block">
+          <h1 className="text-dash-heading font-bold tracking-wide brand-text leading-tight truncate max-w-[120px] md:max-w-none">
             {tenantName || "DevForLess"}
           </h1>
-          <span className="text-dash-caption font-medium" style={{ color: "#64748b" }}>
+          <span className="text-dash-caption font-medium hidden md:inline" style={{ color: "#64748b" }}>
             {email || "—"}
           </span>
         </div>
       </button>
 
-      <div className="hidden lg:flex flex-1 max-w-3xl mx-8 items-center gap-4" id="header-progress">
-        <div className="relative flex-shrink-0" id="project-dropdown-wrap" ref={dropdownRef}>
-          <div className="flex items-center gap-2">
+      <div className="flex flex-1 max-w-3xl mx-1 sm:mx-2 md:mx-4 lg:mx-8 items-center gap-2 md:gap-4 min-w-0" id="header-progress">
+        <div className="relative min-w-0 flex-1 md:flex-none" id="project-dropdown-wrap" ref={dropdownRef}>
+          <div className="flex items-center gap-1.5 md:gap-2">
             <button
               type="button"
-              className="project-selector flex items-center gap-2.5 px-3.5 py-2 rounded-xl"
+              className="project-selector dashboard-topbar__project-trigger flex items-center gap-2 md:gap-2.5 px-2.5 md:px-3.5 py-2 rounded-xl min-w-0"
               id="project-trigger"
               data-tutorial={projectPickerTutorialTarget || undefined}
               onClick={() => setDropdownOpen((o) => !o)}
@@ -265,24 +289,24 @@ export default function DashboardTopBar({
                   style={{ fontSize: "8px" }}
                 />
               </div>
-              <div className="flex flex-col text-left">
+              <div className="flex flex-col text-left min-w-0">
                 <span
-                  className="text-dash-caption uppercase tracking-wider font-semibold leading-none mb-0.5"
+                  className="dashboard-topbar__project-label text-dash-caption uppercase tracking-wider font-semibold leading-none mb-0.5"
                   style={{ color: "#475569" }}
                 >
                   Projeto
                 </span>
-                <span className="text-dash-body text-teal-200 font-semibold leading-none max-w-[120px] truncate">
+                <span className="text-dash-body text-teal-200 font-semibold leading-none max-w-[72px] sm:max-w-[120px] md:max-w-[160px] truncate">
                   {activeName}
                 </span>
               </div>
               {showGitUi && (
                 <>
                   <div
-                    className="w-px h-5 mx-1 flex-shrink-0"
+                    className="dashboard-topbar__git-divider w-px h-5 mx-1 flex-shrink-0"
                     style={{ background: "rgba(20,184,166,0.18)" }}
                   />
-                  <div className="flex items-center gap-1">
+                  <div className="dashboard-topbar__git-badge flex items-center gap-1">
                     <span
                       className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"
                       style={{ boxShadow: "0 0 5px #14b8a6" }}
@@ -292,11 +316,11 @@ export default function DashboardTopBar({
                 </>
               )}
               {preparing && (
-                <span className="text-dash-caption text-amber-400">A preparar…</span>
+                <span className="dashboard-topbar__preparing text-dash-caption text-amber-400">A preparar…</span>
               )}
               <FontAwesomeIcon
                 icon={faChevronDown}
-                className="text-dash-caption ml-1 transition-transform duration-200"
+                className="text-dash-caption ml-0.5 md:ml-1 flex-shrink-0 transition-transform duration-200"
                 style={{
                   color: "#475569",
                   transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -322,7 +346,7 @@ export default function DashboardTopBar({
           </div>
 
           <div
-            className={`project-dropdown glass-menu${dropdownOpen ? " open" : ""}`}
+            className={`project-dropdown dashboard-topbar__project-dropdown glass-menu${dropdownOpen ? " open" : ""}`}
             id="project-dropdown"
             style={{ top: "calc(100% + 8px)", left: 0 }}
           >
@@ -438,30 +462,32 @@ export default function DashboardTopBar({
         </div>
 
         <div
-          className="w-px h-7 flex-shrink-0"
+          className="hidden md:block w-px h-7 flex-shrink-0"
           style={{ background: "linear-gradient(180deg,transparent,rgba(20,184,166,0.22),transparent)" }}
         />
 
         {selectedProject && (
-          <HeaderStepper
-            scope={scope}
-            projectCompleted={projectCompleted}
-            onMacroClick={onMacroClick}
-            onMicrosClick={onMicrosClick}
-            onTasksClick={onTasksClick}
-            onDevClick={onDevClick}
-            pipelineStepTutorialTargets={pipelineStepTutorialTargets || {}}
-          />
+          <div className="hidden md:flex flex-1 min-w-0">
+            <HeaderStepper
+              scope={scope}
+              projectCompleted={projectCompleted}
+              onMacroClick={onMacroClick}
+              onMicrosClick={onMicrosClick}
+              onTasksClick={onTasksClick}
+              onDevClick={onDevClick}
+              pipelineStepTutorialTargets={pipelineStepTutorialTargets || {}}
+            />
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2.5 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <NotificationBell
           projectSlug={notificationProjectSlug}
           projectName={notificationProjectName}
         />
         <div
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-dash-caption font-medium"
+          className="dashboard-topbar__status-badge items-center gap-1.5 px-3 py-1.5 rounded-full text-dash-caption font-medium"
           style={{
             background: "linear-gradient(135deg,rgba(20,184,166,0.11) 0%,rgba(6,182,212,0.07) 100%)",
             border: "1px solid rgba(20,184,166,0.25)",
@@ -479,51 +505,85 @@ export default function DashboardTopBar({
             {runningCount > 0 ? `${runningCount} em execução` : "Sistema ativo"}
           </span>
         </div>
-        {(canManageUsers || isPlatformAdmin) && onUsers && (
-          <button
-            type="button"
-            className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "users" ? " btn-glass--active" : " text-slate-300"}`}
-            onClick={onUsers}
-          >
-            Usuários
-          </button>
-        )}
-        {canExecute && onAgents && (
-          <button
-            type="button"
-            className={`btn-glass px-3.5 py-2 rounded-xl text-dash-body font-medium flex items-center gap-2${activeView === "agents" ? " btn-glass--active" : ""}`}
-            onClick={onAgents}
-            data-tutorial={agentsNavTutorialTarget || undefined}
-          >
-            <FontAwesomeIcon icon={faRobot} className="text-violet-400 text-dash-body" />
-            <span className={`text-dash-body${activeView === "agents" ? "" : " text-slate-300"}`}>Agentes</span>
-          </button>
-        )}
-        {isPlatformAdmin && onAdminWorkers && (
-          <button
-            type="button"
-            className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "adminWorkers" ? " btn-glass--active" : " text-slate-300"}`}
-            onClick={onAdminWorkers}
-          >
-            Bots
-          </button>
-        )}
-        {isPlatformAdmin && onAdmin && (
-          <button
-            type="button"
-            className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "admin" ? " btn-glass--active" : " text-slate-300"}`}
-            onClick={onAdmin}
-          >
-            Admin
-          </button>
-        )}
-        {onLogout && (
-          <button type="button" className="btn-glass px-3.5 py-2 rounded-xl text-dash-body font-medium flex items-center gap-2" onClick={onLogout}>
-            <FontAwesomeIcon icon={faArrowRightFromBracket} className="text-dash-body" style={{ color: "#475569" }} />
-            <span className="text-dash-body" style={{ color: "#94a3b8" }}>
-              Sair
-            </span>
-          </button>
+        <div className="dashboard-topbar__nav-desktop">
+          {(canManageUsers || isPlatformAdmin) && onUsers && (
+            <button
+              type="button"
+              className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "users" ? " btn-glass--active" : " text-slate-300"}`}
+              onClick={onUsers}
+            >
+              Usuários
+            </button>
+          )}
+          {canExecute && onAgents && (
+            <button
+              type="button"
+              className={`btn-glass px-3.5 py-2 rounded-xl text-dash-body font-medium flex items-center gap-2${activeView === "agents" ? " btn-glass--active" : ""}`}
+              onClick={onAgents}
+              data-tutorial={agentsNavTutorialTarget || undefined}
+            >
+              <FontAwesomeIcon icon={faRobot} className="text-violet-400 text-dash-body" />
+              <span className={`text-dash-body${activeView === "agents" ? "" : " text-slate-300"}`}>Agentes</span>
+            </button>
+          )}
+          {isPlatformAdmin && onAdminWorkers && (
+            <button
+              type="button"
+              className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "adminWorkers" ? " btn-glass--active" : " text-slate-300"}`}
+              onClick={onAdminWorkers}
+            >
+              Bots
+            </button>
+          )}
+          {isPlatformAdmin && onAdmin && (
+            <button
+              type="button"
+              className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "admin" ? " btn-glass--active" : " text-slate-300"}`}
+              onClick={onAdmin}
+            >
+              Admin
+            </button>
+          )}
+          {onLogout && (
+            <button type="button" className="btn-glass px-3.5 py-2 rounded-xl text-dash-body font-medium flex items-center gap-2" onClick={onLogout}>
+              <FontAwesomeIcon icon={faArrowRightFromBracket} className="text-dash-body" style={{ color: "#475569" }} />
+              <span className="text-dash-body" style={{ color: "#94a3b8" }}>
+                Sair
+              </span>
+            </button>
+          )}
+        </div>
+        {overflowItems.length > 0 && (
+          <div className="dashboard-topbar__nav-overflow dashboard-topbar-overflow" ref={overflowRef}>
+            <button
+              type="button"
+              className="btn-glass w-9 h-9 rounded-xl flex items-center justify-center"
+              aria-expanded={overflowOpen}
+              aria-haspopup="menu"
+              aria-label="Menu de navegação"
+              onClick={() => setOverflowOpen((open) => !open)}
+            >
+              <FontAwesomeIcon icon={faBars} className="text-slate-300" />
+            </button>
+            {overflowOpen && (
+              <div className="dashboard-topbar-overflow__menu" role="menu">
+                {overflowItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    role="menuitem"
+                    className={`dashboard-topbar-overflow__item${item.active ? " dashboard-topbar-overflow__item--active" : ""}`}
+                    onClick={() => {
+                      item.onClick();
+                      setOverflowOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </header>

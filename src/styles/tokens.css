@@ -38,6 +38,22 @@
   --motor-width: 268px;
   --metrics-width: 348px;
   --header-height: auto;
+
+  /* Responsive breakpoints (reference values) */
+  --bp-laptop: 1400px;
+  --bp-tablet: 1024px;
+  --bp-mobile: 768px;
+
+  /* Dashboard layout widths */
+  --motor-width-full: 215px;
+  --motor-width-rail: 64px;
+  --metrics-width-full: 480px;
+  --metrics-width-md: 360px;
+  --metrics-width-sm: 320px;
+  --kanban-lane-min: 195px;
+  --kanban-lane-min-compact: 155px;
+  --kanban-lane-min-mobile: 130px;
+  --mobile-tabs-height: 56px;
 }
 
 body {

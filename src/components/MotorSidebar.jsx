@@ -24,7 +24,6 @@ export default function MotorSidebar({ playAllTutorialTarget }) {
     <aside
       className="sidebar-left rounded-2xl flex-shrink-0 flex flex-col overflow-hidden"
       id="sidebar-left"
-      style={{ width: "215px" }}
     >
       <div className="sidebar-section-header px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
