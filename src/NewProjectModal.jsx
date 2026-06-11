@@ -177,7 +177,7 @@ export default function NewProjectModal({
             ) : !macroHelpReady ? (
               <p className="msg msg--error">
                 Configure pelo menos um bot e a chave Admin Cursor do tenant antes de
-                criar projetos. Contacte o administrador da plataforma.
+                criar projetos. Contate o administrador da plataforma.
               </p>
             ) : null}
 

@@ -133,7 +133,7 @@ export default function CommandCenter({
             className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block"
             style={{ boxShadow: "0 0 7px #14b8a6", animation: "blink 2s step-end infinite" }}
           />
-          {activeCount} tarefa{activeCount !== 1 ? "s" : ""} activa{activeCount !== 1 ? "s" : ""}
+          {activeCount} tarefa{activeCount !== 1 ? "s" : ""} ativa{activeCount !== 1 ? "s" : ""}
         </span>
       </div>
 

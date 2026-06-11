@@ -41,7 +41,7 @@ export default function AppHeader({
           }`}
         >
           <span className="pipeline-live-badge__dot" aria-hidden />
-          {runningCount > 0 ? `${runningCount} em execução` : "Sistema activo"}
+          {runningCount > 0 ? `${runningCount} em execução` : "Sistema ativo"}
         </div>
         {(canManageUsers || isPlatformAdmin) && onUsers && (
           <button type="button" className="toolbar-btn" onClick={onUsers}>

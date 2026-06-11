@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { getApiBase, getToken } from "./api.js";
+import { getApiBase, getToken, handleTenantBlocked } from "./api.js";
 
 const SocketContext = createContext(null);
 
@@ -44,6 +44,9 @@ export function SocketProvider({ children }) {
         const event = JSON.parse(ev.data);
         const type = event.type;
         if (!type) return;
+        if (type === "tenant:blocked") {
+          handleTenantBlocked();
+        }
         const handlers = listenersRef.current.get(type);
         if (handlers) {
           for (const fn of handlers) fn(event);

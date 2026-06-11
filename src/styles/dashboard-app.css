@@ -1125,6 +1125,14 @@
   gap: 10px;
 }
 
+.admin-mgmt__company-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
 .admin-mgmt__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1223,6 +1231,11 @@
 .admin-mgmt__input[readonly] {
   opacity: 0.75;
   cursor: default;
+}
+
+.admin-mgmt__input--textarea {
+  min-height: 72px;
+  resize: vertical;
 }
 
 .admin-form-card {
@@ -1639,6 +1652,34 @@
   font-size: 11px;
   color: #64748b;
   word-break: break-all;
+}
+
+.admin-modal__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.admin-mgmt__worker-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(20, 184, 166, 0.15);
+  background: rgba(6, 12, 32, 0.5);
+}
+
+.admin-mgmt__worker-cmd {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  word-break: break-all;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .admin-modal__user-preview {

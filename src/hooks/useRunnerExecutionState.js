@@ -383,7 +383,7 @@ export function useRunnerExecutionState({
 
         setExecError(
 
-          "Worker não configurado. Contacte o administrador da plataforma."
+          "Worker não configurado. Contate o administrador da plataforma."
 
         );
 
@@ -655,8 +655,8 @@ export function useRunnerExecutionState({
       ? `${activeSlots.length} bot(s) ativo(s) neste projeto`
 
       : projectCompleted
-        ? "Projeto finalizado — execução desactivada"
-        : "Nenhum bot activo — use ▶ em cada worker";
+        ? "Projeto finalizado — execução desativada"
+        : "Nenhum bot ativo — use ▶ em cada worker";
 
 
 

@@ -28,6 +28,12 @@ import { RunnerExecutionProvider } from "./context/RunnerExecutionContext.jsx";
 import { RailwayPublishProvider } from "./context/RailwayPublishContext.jsx";
 import { apiFetch } from "./api.js";
 import {
+  projectExistsInList,
+  readStoredDashboardProject,
+  resolveSelectedProject,
+  writeStoredDashboardProject,
+} from "./lib/dashboardProjectSelection.js";
+import {
   isClientGitConnected,
   isGitReadyForPlay,
   isWorkspacePreparing,
@@ -378,13 +384,8 @@ export default function App({ onLogout }) {
   const { session, isPlatformAdmin } = useSession();
   const { subscribe } = useSocket();
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(() => {
-    try {
-      return localStorage.getItem("ai-factory-dashboard-project") || "";
-    } catch {
-      return "";
-    }
-  });
+  const [selectedProject, setSelectedProject] = useState("");
+  const tenantId = session?.tenantId;
   const [tasks, setTasks] = useState([]);
   const [scopeState, setScopeState] = useState(null);
   const [autorun, setAutorun] = useState(false);
@@ -426,17 +427,21 @@ export default function App({ onLogout }) {
   }, [loadProjects]);
 
   useEffect(() => {
-    if (selectedProject) {
-      try {
-        localStorage.setItem("ai-factory-dashboard-project", selectedProject);
-      } catch {
-        /* ignore */
-      }
+    if (!tenantId) return;
+    try {
+      localStorage.removeItem("ai-factory-dashboard-project");
+    } catch {
+      /* ignore */
     }
-  }, [selectedProject]);
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    writeStoredDashboardProject(tenantId, selectedProject);
+  }, [tenantId, selectedProject]);
 
   const loadDashboardData = useCallback(async () => {
-    if (!selectedProject) return;
+    if (!selectedProject || !projectExistsInList(projects, selectedProject)) return;
     const q = encodeURIComponent(selectedProject);
     try {
       const [tasksRes, scopeRes, settingsRes] = await Promise.all([
@@ -593,20 +598,13 @@ export default function App({ onLogout }) {
   }, [selectedProject, resetting, loadProjects]);
 
   useEffect(() => {
-    if (selectedProject && projects.length > 0) {
-      const exists = projects.some((p) =>
-        (typeof p === "string" ? p : p.slug) === selectedProject
-      );
-      if (!exists) {
-        setSelectedProject("");
-        return;
-      }
+    if (!tenantId) return;
+    const stored = readStoredDashboardProject(tenantId);
+    const next = resolveSelectedProject(projects, selectedProject, stored);
+    if (next !== selectedProject) {
+      setSelectedProject(next);
     }
-    if (!selectedProject && projects.length > 0) {
-      const first = projects[0];
-      setSelectedProject(typeof first === "string" ? first : first.slug);
-    }
-  }, [projects, selectedProject]);
+  }, [tenantId, projects, selectedProject]);
 
   const [githubNotice, setGithubNotice] = useState(null);
 

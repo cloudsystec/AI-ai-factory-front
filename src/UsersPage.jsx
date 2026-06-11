@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBuilding,
+  faLock,
+  faLockOpen,
   faPen,
   faPlus,
   faTrash,
@@ -58,24 +60,28 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [workerSetupInfo, setWorkerSetupInfo] = useState(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
   const [createRole, setCreateRole] = useState(
     isPlatformAdmin ? "auditor" : "executor"
   );
-  const [createPassword, setCreatePassword] = useState("");
 
   const [editUser, setEditUser] = useState(null);
   const [editRole, setEditRole] = useState("executor");
-  const [editPassword, setEditPassword] = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
 
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [newTenantEmail, setNewTenantEmail] = useState("");
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantPlan, setNewTenantPlan] = useState("starter");
   const [newAuditorEmail, setNewAuditorEmail] = useState("");
-  const [newAuditorPassword, setNewAuditorPassword] = useState("");
+
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState("payment");
+  const [blockNote, setBlockNote] = useState("");
+  const [blockLoading, setBlockLoading] = useState(false);
 
   const creatableRoles = useMemo(() => {
     if (isPlatformAdmin) {
@@ -138,12 +144,12 @@ export default function UsersPage() {
   function clearFeedback() {
     setError(null);
     setMessage(null);
+    setWorkerSetupInfo(null);
   }
 
   function closeCreate() {
     setShowCreate(false);
     setCreateEmail("");
-    setCreatePassword("");
   }
 
   async function handleCreate(e) {
@@ -156,12 +162,11 @@ export default function UsersPage() {
         body: JSON.stringify({
           email: createEmail,
           role: createRole,
-          password: createPassword,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      setMessage("Usuário criado com sucesso.");
+      setMessage("Usuário criado — senha temporária enviada por e-mail.");
       closeCreate();
       await loadUsers();
     } catch (err) {
@@ -172,13 +177,11 @@ export default function UsersPage() {
   function openEdit(user) {
     setEditUser(user);
     setEditRole(user.role);
-    setEditPassword("");
     clearFeedback();
   }
 
   function closeEdit() {
     setEditUser(null);
-    setEditPassword("");
   }
 
   function canEditUser(user) {
@@ -191,9 +194,53 @@ export default function UsersPage() {
     return canEditUser(user) || isPlatformAdmin;
   }
 
-  function canSetPasswordFor(user) {
+  function canManageSecurity(user) {
+    if (user.id === session?.userId) return false;
     if (isPlatformAdmin) return true;
     return user.role === "executor" || user.role === "viewer";
+  }
+
+  async function handleUnlock(user) {
+    clearFeedback();
+    setActionLoading(`unlock-${user.id}`);
+    try {
+      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const res = await apiFetch(`${base}/${user.id}/unlock`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage(`Conta de ${user.email} desbloqueada.`);
+      await loadUsers();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleResetTemporaryPassword(user) {
+    if (
+      !window.confirm(
+        `Gerar nova senha temporária para ${user.email}? A senha será enviada por e-mail.`
+      )
+    ) {
+      return;
+    }
+    clearFeedback();
+    setActionLoading(`reset-${user.id}`);
+    try {
+      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const res = await apiFetch(`${base}/${user.id}/reset-temporary-password`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage("Senha temporária enviada por e-mail.");
+      await loadUsers();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
   }
 
   async function handleSaveEdit(e) {
@@ -206,15 +253,6 @@ export default function UsersPage() {
         const res = await apiFetch(`${base}/${editUser.id}`, {
           method: "PATCH",
           body: JSON.stringify({ role: editRole }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || res.statusText);
-      }
-
-      if (editPassword.length >= 6 && canSetPasswordFor(editUser)) {
-        const res = await apiFetch(`${base}/${editUser.id}/password`, {
-          method: "PUT",
-          body: JSON.stringify({ password: editPassword }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.statusText);
@@ -244,6 +282,55 @@ export default function UsersPage() {
     }
   }
 
+  async function handleBlockTenant(e) {
+    e.preventDefault();
+    if (!tenantId) return;
+    setBlockLoading(true);
+    clearFeedback();
+    try {
+      const res = await apiFetch(`/admin/tenants/${tenantId}/block`, {
+        method: "POST",
+        body: JSON.stringify({ reason: blockReason, note: blockNote.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage("Empresa bloqueada. Usuários perderão acesso imediatamente.");
+      setShowBlockModal(false);
+      setBlockNote("");
+      await loadTenants();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setBlockLoading(false);
+    }
+  }
+
+  async function handleUnblockTenant() {
+    if (!tenantId) return;
+    if (
+      !window.confirm(
+        "Desbloquear esta empresa? Os usuários voltarão a conseguir entrar."
+      )
+    ) {
+      return;
+    }
+    clearFeedback();
+    setBlockLoading(true);
+    try {
+      const res = await apiFetch(`/admin/tenants/${tenantId}/unblock`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      setMessage("Empresa desbloqueada.");
+      await loadTenants();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setBlockLoading(false);
+    }
+  }
+
   async function handleCreateTenant(e) {
     e.preventDefault();
     clearFeedback();
@@ -255,18 +342,30 @@ export default function UsersPage() {
           name: newTenantName,
           planId: newTenantPlan,
           auditorEmail: newAuditorEmail,
-          auditorPassword: newAuditorPassword,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
-      setMessage(`Empresa "${data.tenant?.name || newTenantName}" criada com sucesso.`);
+
+      const workerSetup = data.workerSetup || null;
+      setWorkerSetupInfo(workerSetup);
+
+      let successMsg = `Empresa "${data.tenant?.name || newTenantName}" criada com sucesso.`;
+      if (workerSetup?.mode === "railway") {
+        successMsg += " Worker enfileirado no Railway.";
+      } else if (workerSetup?.mode === "local") {
+        successMsg += workerSetup.started
+          ? workerSetup.pending
+            ? " Worker Docker em execução (build em andamento)."
+            : " Worker Docker iniciado."
+          : " Worker Docker não iniciou automaticamente — use o comando abaixo.";
+      }
+      setMessage(successMsg);
       setShowCreateTenant(false);
       setNewTenantEmail("");
       setNewTenantName("");
       setNewTenantPlan("starter");
       setNewAuditorEmail("");
-      setNewAuditorPassword("");
       await loadTenants();
       if (data.tenant?.id) setTenantId(data.tenant.id);
     } catch (err) {
@@ -303,10 +402,45 @@ export default function UsersPage() {
       }
     >
       <div className="admin-mgmt">
-        {(error || message) && (
+        {(error || message || workerSetupInfo) && (
           <div className="admin-mgmt__alerts" role="status">
             {error && <p className="msg msg--error">{error}</p>}
             {message && <p className="msg msg--ok">{message}</p>}
+            {workerSetupInfo && (
+              <div className="admin-mgmt__worker-setup">
+                {workerSetupInfo.mode === "railway" && (
+                  <p className="admin-modal__hint">
+                    Provisionamento Railway enfileirado. Acompanhe em Admin → Workers.
+                  </p>
+                )}
+                {workerSetupInfo.mode === "local" && (
+                  <>
+                    {workerSetupInfo.envPath && (
+                      <p className="admin-modal__hint">
+                        Env: <code>{workerSetupInfo.envPath}</code>
+                      </p>
+                    )}
+                    {workerSetupInfo.error && (
+                      <p className="msg msg--error">{workerSetupInfo.error}</p>
+                    )}
+                    {workerSetupInfo.logPath && (
+                      <p className="admin-modal__hint">
+                        Log: <code>{workerSetupInfo.logPath}</code>
+                      </p>
+                    )}
+                    {workerSetupInfo.command && (
+                      <p className="admin-modal__hint">
+                        Comando (na raiz do <code>ai-factory-cli</code>):
+                        <br />
+                        <code className="admin-mgmt__worker-cmd">
+                          {workerSetupInfo.command}
+                        </code>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -327,6 +461,7 @@ export default function UsersPage() {
                     {tenants.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name || t.email}
+                        {t.isBlocked || t.blocked_at ? " (bloqueada)" : ""}
                       </option>
                     ))}
                   </GlassSelect>
@@ -342,17 +477,50 @@ export default function UsersPage() {
                     <span className="admin-mgmt__chip admin-mgmt__chip--teal">
                       {usersUsed}/{usersMax} usuários
                     </span>
+                    {(selectedTenant.isBlocked || selectedTenant.blocked_at) && (
+                      <span className="admin-mgmt__chip admin-mgmt__chip--danger">
+                        Bloqueada
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                className={`toolbar-btn${showCreateTenant ? "" : " toolbar-btn--primary"}`}
-                onClick={() => setShowCreateTenant((v) => !v)}
-              >
-                <FontAwesomeIcon icon={faPlus} aria-hidden />
-                {showCreateTenant ? "Cancelar" : "Nova empresa"}
-              </button>
+              <div className="admin-mgmt__company-actions">
+                {selectedTenant &&
+                  (selectedTenant.isBlocked || selectedTenant.blocked_at ? (
+                    <button
+                      type="button"
+                      className="toolbar-btn"
+                      disabled={blockLoading}
+                      onClick={handleUnblockTenant}
+                    >
+                      <FontAwesomeIcon icon={faLockOpen} aria-hidden />
+                      Desbloquear empresa
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="toolbar-btn toolbar-btn--danger"
+                      disabled={blockLoading}
+                      onClick={() => {
+                        setBlockReason("payment");
+                        setBlockNote("");
+                        setShowBlockModal(true);
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faLock} aria-hidden />
+                      Bloquear empresa
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  className={`toolbar-btn${showCreateTenant ? "" : " toolbar-btn--primary"}`}
+                  onClick={() => setShowCreateTenant((v) => !v)}
+                >
+                  <FontAwesomeIcon icon={faPlus} aria-hidden />
+                  {showCreateTenant ? "Cancelar" : "Nova empresa"}
+                </button>
+              </div>
             </div>
 
             {showCreateTenant && (
@@ -361,7 +529,8 @@ export default function UsersPage() {
                   <div>
                     <h3 className="admin-form-card__title">Nova empresa</h3>
                     <p className="admin-form-card__desc">
-                      Cria o tenant, plano e o primeiro auditor de acesso.
+                      Cria o tenant, plano e o primeiro auditor. A senha temporária
+                      será enviada por e-mail.
                     </p>
                   </div>
                 </header>
@@ -410,7 +579,7 @@ export default function UsersPage() {
                 <div className="admin-form-card__section">
                   <p className="admin-form-card__section-label">Primeiro auditor</p>
                   <div className="admin-form-card__grid">
-                    <label className="admin-mgmt__field">
+                    <label className="admin-mgmt__field admin-mgmt__field--full">
                       <span className="admin-mgmt__label">Email do auditor</span>
                       <input
                         className="admin-mgmt__input"
@@ -419,18 +588,6 @@ export default function UsersPage() {
                         onChange={(e) => setNewAuditorEmail(e.target.value)}
                         required
                         placeholder="auditor@exemplo.com"
-                      />
-                    </label>
-                    <label className="admin-mgmt__field">
-                      <span className="admin-mgmt__label">Senha do auditor</span>
-                      <input
-                        className="admin-mgmt__input"
-                        type="password"
-                        value={newAuditorPassword}
-                        onChange={(e) => setNewAuditorPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        autoComplete="new-password"
                       />
                     </label>
                   </div>
@@ -513,15 +670,46 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td>
-                        <span
-                          className={`admin-status admin-status--${
-                            u.hasPassword ? "ok" : "warn"
-                          }`}
-                        >
-                          {u.hasPassword ? "Senha configurada" : "Senha pendente"}
-                        </span>
+                        <div className="admin-table__status-group">
+                          {u.isLocked ? (
+                            <span className="admin-status admin-status--danger">
+                              Bloqueado
+                            </span>
+                          ) : (
+                            <span className="admin-status admin-status--ok">
+                              Ativo
+                            </span>
+                          )}
+                          {u.passwordMustChange && (
+                            <span className="admin-status admin-status--warn">
+                              Troca de senha pendente
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="admin-table__actions">
+                        {canManageSecurity(u) && u.isLocked && (
+                          <button
+                            type="button"
+                            className="admin-table__icon-btn"
+                            onClick={() => handleUnlock(u)}
+                            disabled={actionLoading === `unlock-${u.id}`}
+                            title="Desbloquear conta"
+                          >
+                            <span>Desbloquear</span>
+                          </button>
+                        )}
+                        {canManageSecurity(u) && (
+                          <button
+                            type="button"
+                            className="admin-table__icon-btn"
+                            onClick={() => handleResetTemporaryPassword(u)}
+                            disabled={actionLoading === `reset-${u.id}`}
+                            title="Gerar senha temporária"
+                          >
+                            <span>Gerar senha temp.</span>
+                          </button>
+                        )}
                         {canEditUser(u) && (
                           <button
                             type="button"
@@ -590,19 +778,6 @@ export default function UsersPage() {
                 </option>
               ))}
             </GlassSelect>
-            <label className="admin-mgmt__field">
-              <span className="admin-mgmt__label">Senha inicial</span>
-              <input
-                className="admin-mgmt__input"
-                type="password"
-                value={createPassword}
-                onChange={(e) => setCreatePassword(e.target.value)}
-                required
-                minLength={6}
-                autoComplete="new-password"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </label>
             <footer className="admin-modal__footer">
               <button type="button" className="toolbar-btn" onClick={closeCreate}>
                 Cancelar
@@ -665,28 +840,74 @@ export default function UsersPage() {
               )}
             </label>
 
-            {canSetPasswordFor(editUser) && (
-              <label className="admin-mgmt__field">
-                <span className="admin-mgmt__label">Nova senha (opcional)</span>
-                <input
-                  className="admin-mgmt__input"
-                  type="password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="Deixe vazio para não alterar"
-                />
-                <span className="admin-mgmt__hint">Mínimo 6 caracteres</span>
-              </label>
-            )}
-
             <footer className="admin-modal__footer">
               <button type="button" className="toolbar-btn" onClick={closeEdit}>
                 Cancelar
               </button>
               <button type="submit" className="toolbar-btn toolbar-btn--primary">
                 Salvar alterações
+              </button>
+            </footer>
+          </form>
+        </AppModal>
+      )}
+
+      {showBlockModal && (
+        <AppModal
+          variant="form"
+          panelClassName="admin-modal"
+          eyebrow="Empresa"
+          title="Bloquear empresa"
+          titleId="block-tenant-title"
+          subtitle={
+            selectedTenant
+              ? selectedTenant.name || selectedTenant.email
+              : "Empresa selecionada"
+          }
+          subtitleClassName="admin-modal__subtitle"
+          onClose={() => !blockLoading && setShowBlockModal(false)}
+        >
+          <form className="admin-modal__form" onSubmit={handleBlockTenant}>
+            <p className="admin-modal__hint">
+              Todos os usuários perderão acesso imediatamente (incluindo sessões
+              ativas). A execução automática será pausada em todos os projetos.
+            </p>
+            <GlassSelect
+              label="Motivo"
+              fieldClassName="admin-mgmt__field"
+              labelClassName="admin-mgmt__label"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+            >
+              <option value="security">Segurança</option>
+              <option value="payment">Falta de pagamento</option>
+              <option value="other">Outro</option>
+            </GlassSelect>
+            <label className="admin-mgmt__field">
+              <span className="admin-mgmt__label">Nota interna (opcional)</span>
+              <textarea
+                className="admin-mgmt__input admin-mgmt__input--textarea"
+                value={blockNote}
+                onChange={(e) => setBlockNote(e.target.value)}
+                rows={3}
+                placeholder="Detalhes para auditoria interna"
+              />
+            </label>
+            <footer className="admin-modal__footer">
+              <button
+                type="button"
+                className="toolbar-btn"
+                disabled={blockLoading}
+                onClick={() => setShowBlockModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="toolbar-btn toolbar-btn--danger"
+                disabled={blockLoading}
+              >
+                {blockLoading ? "Bloqueando…" : "Confirmar bloqueio"}
               </button>
             </footer>
           </form>

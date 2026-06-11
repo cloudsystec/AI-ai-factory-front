@@ -115,6 +115,9 @@ export default function LoginPage({ onLoggedIn }) {
   useEffect(() => {
     const prefill = new URLSearchParams(window.location.search).get("email")?.trim();
     if (prefill) setEmail(prefill);
+    if (new URLSearchParams(window.location.search).get("blocked") === "1") {
+      setError("Empresa bloqueada. Contate o suporte da plataforma.");
+    }
   }, []);
 
   async function handleSubmit(e) {
@@ -128,6 +131,19 @@ export default function LoginPage({ onLoggedIn }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.code === "account_locked") {
+          throw new Error(
+            "Conta bloqueada após várias tentativas. Contate o auditor da sua empresa."
+          );
+        }
+        if (data.code === "tenant_blocked") {
+          throw new Error(
+            data.error || "Empresa bloqueada. Contate o suporte da plataforma."
+          );
+        }
+        if (data.code === "invalid_credentials" || res.status === 401) {
+          throw new Error("Email ou senha incorrectos.");
+        }
         throw new Error(data.error || data.code || res.statusText);
       }
       onLoggedIn(data);
@@ -238,6 +254,10 @@ export default function LoginPage({ onLoggedIn }) {
                     </button>
                   </span>
                 </label>
+
+                <p className="login-form__forgot">
+                  <a href="/forgot-password">Esqueci minha senha</a>
+                </p>
               </div>
 
               {error && <p className="msg msg--error login-form__error">{error}</p>}

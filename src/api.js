@@ -38,6 +38,16 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+let tenantBlockedHandled = false;
+
+export function handleTenantBlocked() {
+  if (typeof window === "undefined") return;
+  if (tenantBlockedHandled) return;
+  tenantBlockedHandled = true;
+  clearToken();
+  window.location.replace("/login?blocked=1");
+}
+
 export function isLoggedIn() {
   return Boolean(getToken());
 }
@@ -58,6 +68,16 @@ export async function apiFetch(path, init = {}) {
     headers["Content-Type"] = "application/json";
   }
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (res.status === 403) {
+    try {
+      const data = await res.clone().json();
+      if (data?.code === "tenant_blocked") {
+        handleTenantBlocked();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   return res;
 }
 

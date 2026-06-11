@@ -23,6 +23,7 @@ function buildSession(data) {
     role: data.role,
     planId: data.planId,
     tutorialPending: Boolean(data.tutorialPending),
+    mustChangePassword: Boolean(data.mustChangePassword),
     capabilities: data.capabilities || DEFAULT_CAPS,
   };
 }
@@ -47,6 +48,14 @@ export function SessionProvider({ children, onLogout, initialLogin = null }) {
           clearToken();
           onLogout?.();
           return;
+        }
+        if (res.status === 403) {
+          const data = await res.json().catch(() => ({}));
+          if (data.code === "tenant_blocked") {
+            clearToken();
+            onLogout?.();
+            return;
+          }
         }
         throw new Error(await res.text());
       }

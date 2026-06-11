@@ -5,11 +5,14 @@ import "./styles/app-glass-theme.css";
 import "./styles/tutorial.css";
 import App from "./App.jsx";
 import LoginPage from "./LoginPage.jsx";
+import ForgotPasswordPage from "./ForgotPasswordPage.jsx";
+import ChangePasswordPage from "./ChangePasswordPage.jsx";
 import LandingPage from "./landing/LandingPage.jsx";
 import TutorialExperience from "./tutorial/TutorialExperience.jsx";
 import { SessionProvider, useSession } from "./SessionContext.jsx";
 import { SocketProvider } from "./useSocket.jsx";
 import { clearToken, isLoggedIn, setToken } from "./api.js";
+import { clearAllDashboardProjectStorage } from "./lib/dashboardProjectSelection.js";
 
 function normalizePath() {
   return window.location.pathname.replace(/\/$/, "") || "/";
@@ -38,7 +41,7 @@ function LoginRoute() {
 }
 
 function AppGate({ onLogout }) {
-  const { session, loading, completeTutorial } = useSession();
+  const { session, loading, completeTutorial, setFromLogin, refresh } = useSession();
 
   if (loading) {
     return (
@@ -69,6 +72,18 @@ function AppGate({ onLogout }) {
     );
   }
 
+  if (session.mustChangePassword) {
+    return (
+      <ChangePasswordPage
+        onLogout={onLogout}
+        onPasswordChanged={(data) => {
+          setFromLogin({ ...session, ...data, mustChangePassword: false });
+          refresh();
+        }}
+      />
+    );
+  }
+
   const showTutorial =
     session?.role === "executor" && session?.tutorialPending === true;
 
@@ -94,6 +109,7 @@ function AppRoute() {
   }
 
   function handleLogout() {
+    clearAllDashboardProjectStorage();
     clearToken();
     window.location.replace("/login");
   }
@@ -118,6 +134,13 @@ function Root() {
 
   if (path === "/login") {
     return <LoginRoute />;
+  }
+
+  if (path === "/forgot-password") {
+    if (isLoggedIn()) {
+      return <Redirect to="/app" />;
+    }
+    return <ForgotPasswordPage />;
   }
 
   if (path === "/app") {

@@ -501,7 +501,7 @@ export default function RunnerSidebar({
 
         setExecError(
 
-          "Worker não configurado. Contacte o administrador da plataforma."
+          "Worker não configurado. Contate o administrador da plataforma."
 
         );
 
@@ -773,8 +773,8 @@ export default function RunnerSidebar({
       ? `${activeSlots.length} bot(s) ativo(s) neste projeto`
 
       : projectCompleted
-        ? "Projeto finalizado — execução desactivada"
-        : "Nenhum bot activo — use ▶ em cada worker";
+        ? "Projeto finalizado — execução desativada"
+        : "Nenhum bot ativo — use ▶ em cada worker";
 
 
 
@@ -794,7 +794,7 @@ export default function RunnerSidebar({
 
                 className="runner-autorun"
 
-                title="Com bots activos, repõe workers com tasks do A fazer em paralelo (após cada conclusão)"
+                title="Com bots ativos, redefine workers com tasks do A fazer em paralelo (após cada conclusão)"
 
               >
 

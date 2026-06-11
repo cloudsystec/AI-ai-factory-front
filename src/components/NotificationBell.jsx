@@ -108,7 +108,7 @@ export default function NotificationBell({ projectSlug, projectName }) {
       <button
         type="button"
         className="notification-bell btn-glass w-9 h-9 rounded-xl flex items-center justify-center relative transition-all duration-200"
-        aria-label={`Notificações${count ? ` (${count} activas)` : ""}`}
+        aria-label={`Notificações${count ? ` (${count} ativas)` : ""}`}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
@@ -131,7 +131,7 @@ export default function NotificationBell({ projectSlug, projectName }) {
             </span>
             {count > 0 && (
               <span className="text-dash-caption text-teal-400 font-semibold">
-                {count} activa{count !== 1 ? "s" : ""}
+                {count} ativa{count !== 1 ? "s" : ""}
               </span>
             )}
           </div>

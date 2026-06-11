@@ -245,7 +245,7 @@ export default function WorkerRobots({
         </p>
         {projectCompleted && (
           <p className="worker-robots__completed-hint" role="status">
-            Projeto finalizado — bots desactivados
+            Projeto finalizado — bots desativados
           </p>
         )}
         {(showBulkPlay || showBulkPause) && (
@@ -278,7 +278,7 @@ export default function WorkerRobots({
       )}
       {isList && projectCompleted && (
         <p className="worker-robots__completed-hint" role="status">
-          Projeto finalizado — bots desactivados
+          Projeto finalizado — bots desativados
         </p>
       )}
       <div className="worker-robots__row" role="list">
@@ -376,7 +376,7 @@ export default function WorkerRobots({
                   key={slotIndex}
                   role="listitem"
                   className="worker-robot worker-robot--disabled"
-                  title="Bot não configurado. Contacte o administrador da plataforma."
+                  title="Bot não configurado. Contate o administrador da plataforma."
                 >
                   <span className="worker-robot__sprite" aria-hidden>
                     <span className="worker-robot__head" />

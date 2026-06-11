@@ -87,7 +87,7 @@ export default function ProjectSelectorBar({
 
       {showGitUi && (
         <span className="project-selector-bar__git-pill">
-          {compact ? "Git activo" : "Git activo"}
+          {compact ? "Git ativo" : "Git ativo"}
         </span>
       )}
 

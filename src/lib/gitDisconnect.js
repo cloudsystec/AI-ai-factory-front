@@ -38,7 +38,7 @@ export function gitDisconnectPhaseLabel(phase) {
     idle: "",
     client: "",
     provisioning: "A reprovisionar repo da plataforma…",
-    ready: "Git da plataforma activo",
+    ready: "Git da plataforma ativo",
     failed: "Desconexão / provision falhou",
   };
   return map[phase] || phase || "";

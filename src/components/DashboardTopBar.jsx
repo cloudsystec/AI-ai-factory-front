@@ -287,7 +287,7 @@ export default function DashboardTopBar({
                       className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"
                       style={{ boxShadow: "0 0 5px #14b8a6" }}
                     />
-                    <span className="text-dash-caption text-teal-400 font-medium">Git activo</span>
+                    <span className="text-dash-caption text-teal-400 font-medium">Git ativo</span>
                   </div>
                 </>
               )}
@@ -476,7 +476,7 @@ export default function DashboardTopBar({
             }}
           />
           <span className="text-teal-300">
-            {runningCount > 0 ? `${runningCount} em execução` : "Sistema activo"}
+            {runningCount > 0 ? `${runningCount} em execução` : "Sistema ativo"}
           </span>
         </div>
         {(canManageUsers || isPlatformAdmin) && onUsers && (
