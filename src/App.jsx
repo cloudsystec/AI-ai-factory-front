@@ -373,6 +373,8 @@ export default function App({ onLogout }) {
   const [detailTaskId, setDetailTaskId] = useState(null);
   const [projectsError, setProjectsError] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [resumeDiscoverySessionId, setResumeDiscoverySessionId] = useState(null);
+  const prevSelectedProjectRef = useRef(null);
   const [appView, setAppView] = useState("dashboard");
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
@@ -651,7 +653,30 @@ export default function App({ onLogout }) {
     return false;
   }, [scopeState?.projectCompleted, selectedProjectMeta]);
 
-  const canExecuteProject = caps.canExecute && !projectCompleted;
+  const isDraftProject =
+    selectedProjectMeta &&
+    typeof selectedProjectMeta === "object" &&
+    selectedProjectMeta.status === "draft";
+
+  const canExecuteProject =
+    caps.canExecute && !projectCompleted && !isDraftProject;
+
+  useEffect(() => {
+    if (selectedProject === prevSelectedProjectRef.current) return;
+    prevSelectedProjectRef.current = selectedProject;
+
+    if (showNewProjectModal) return;
+
+    if (
+      selectedProjectMeta &&
+      typeof selectedProjectMeta === "object" &&
+      selectedProjectMeta.status === "draft" &&
+      selectedProjectMeta.discoverySessionId
+    ) {
+      setResumeDiscoverySessionId(selectedProjectMeta.discoverySessionId);
+      setShowNewProjectModal(true);
+    }
+  }, [selectedProject, selectedProjectMeta, showNewProjectModal]);
 
   const completionCelebratedRef = useRef(/** @type {Set<string>} */ (new Set()));
 
@@ -829,7 +854,12 @@ export default function App({ onLogout }) {
               onProjectChange={setSelectedProject}
               canWrite={caps.canWrite}
               onNewProject={
-                caps.canWrite ? () => setShowNewProjectModal(true) : undefined
+                caps.canWrite
+                  ? () => {
+                      setResumeDiscoverySessionId(null);
+                      setShowNewProjectModal(true);
+                    }
+                  : undefined
               }
               onEditProject={
                 caps.canWrite && selectedProject
@@ -895,7 +925,9 @@ export default function App({ onLogout }) {
                 emptyHint={
                   !selectedProject
                     ? "Selecione um projeto para ver o quadro de tarefas."
-                    : null
+                    : isDraftProject
+                      ? "Este projeto está em definição de escopo. Conclua o chat PO/SM para ativar o pipeline."
+                      : null
                 }
                 renderTaskCard={(task) => (
                   <TaskCard
@@ -975,7 +1007,15 @@ export default function App({ onLogout }) {
 
       {showNewProjectModal && (
         <NewProjectModal
-          onClose={() => setShowNewProjectModal(false)}
+          resumeSessionId={resumeDiscoverySessionId}
+          onDraftCreated={async (slug) => {
+            await loadProjects();
+            if (slug) setSelectedProject(slug);
+          }}
+          onClose={() => {
+            setShowNewProjectModal(false);
+            setResumeDiscoverySessionId(null);
+          }}
           onCreated={async (created) => {
             const slug =
               typeof created === "string"
@@ -983,6 +1023,7 @@ export default function App({ onLogout }) {
                 : created?.slug || created?.project || "";
             await loadProjects();
             if (slug) setSelectedProject(slug);
+            setResumeDiscoverySessionId(null);
           }}
         />
       )}

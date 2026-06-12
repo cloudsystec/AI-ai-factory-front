@@ -31,6 +31,9 @@ function projectSlug(p) {
 
 function projectName(p) {
   if (typeof p === "string") return p;
+  if (p.status === "draft") {
+    return `[Rascunho] ${p.name || p.slug}`;
+  }
   return p.name || p.slug;
 }
 

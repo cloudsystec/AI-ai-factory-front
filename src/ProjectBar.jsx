@@ -20,13 +20,17 @@ function projectSlug(p) {
  */
 function projectLabel(p) {
   if (typeof p === "string") return p;
+  const base =
+    p.status === "draft"
+      ? `[Rascunho] ${p.name || p.slug}`
+      : p.name || p.slug;
   if (isClientGitConnected(p) && p.defaultBranch) {
-    return `${p.name || p.slug} · ${p.defaultBranch}`;
+    return `${base} · ${p.defaultBranch}`;
   }
   if (isWorkspacePreparing(p)) {
-    return `${p.name || p.slug} [a preparar…]`;
+    return `${base} [a preparar…]`;
   }
-  return p.name || p.slug;
+  return base;
 }
 
 function githubRepoUrl(repoFullName) {

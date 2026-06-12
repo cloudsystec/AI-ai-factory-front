@@ -11,6 +11,8 @@ import { TUTORIAL_DEMO_INPUT } from "./tutorial/mockProjectDiscoveryResponses.js
  * @param {{
  *   onClose: () => void,
  *   onCreated: (slug: string) => void,
+ *   resumeSessionId?: string | null,
+ *   onDraftCreated?: (slug: string) => void,
  *   tutorialMode?: boolean,
  *   onTutorialSubmit?: () => void,
  *   onMacroHelpInteraction?: () => void,
@@ -25,6 +27,8 @@ import { TUTORIAL_DEMO_INPUT } from "./tutorial/mockProjectDiscoveryResponses.js
 export default function NewProjectModal({
   onClose,
   onCreated,
+  resumeSessionId = null,
+  onDraftCreated,
   tutorialMode = false,
   onTutorialSubmit,
   onMacroHelpInteraction,
@@ -43,6 +47,8 @@ export default function NewProjectModal({
   const discovery = useProjectDiscovery({
     tutorialMode,
     onTutorialMessageSent: onMacroHelpInteraction,
+    resumeSessionId,
+    onDraftCreated,
   });
 
   useEffect(() => {
@@ -67,7 +73,7 @@ export default function NewProjectModal({
   }, [tutorialMode]);
 
   async function handleClose() {
-    if (!tutorialMode) {
+    if (!tutorialMode && !discovery.hasDraftProject) {
       await discovery.cancelSession();
     }
     onClose();
