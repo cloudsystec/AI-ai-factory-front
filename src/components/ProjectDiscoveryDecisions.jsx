@@ -9,6 +9,7 @@ import {
  *   decisions: Record<string, { value?: string, resolved?: boolean }>,
  *   progress: { resolved: number, total: number },
  *   topicLabels?: Record<string, string>,
+ *   openTopics?: string[],
  *   readyToCreate: boolean,
  *   proposedName?: string | null,
  *   proposedSlug?: string | null,
@@ -18,11 +19,13 @@ export default function ProjectDiscoveryDecisions({
   decisions,
   progress,
   topicLabels = DISCOVERY_TOPIC_LABELS,
+  openTopics = [],
   readyToCreate,
   proposedName,
   proposedSlug,
 }) {
   const labels = { ...DISCOVERY_TOPIC_LABELS, ...topicLabels };
+  const currentTopic = openTopics[0] ?? null;
 
   return (
     <div className="project-discovery-decisions" aria-label="Decisões do projeto">
@@ -38,12 +41,13 @@ export default function ProjectDiscoveryDecisions({
           {DISCOVERY_TOPIC_KEYS.map((key) => {
             const entry = decisions[key];
             const resolved = entry?.resolved === true;
+            const isCurrent = !resolved && key === currentTopic;
             return (
               <li
                 key={key}
                 className={`project-discovery-decisions__item${
                   resolved ? " project-discovery-decisions__item--done" : ""
-                }`}
+                }${isCurrent ? " project-discovery-decisions__item--current" : ""}`}
               >
                 <span className="project-discovery-decisions__check" aria-hidden>
                   {resolved ? "✓" : "○"}

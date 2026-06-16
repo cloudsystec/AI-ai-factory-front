@@ -72,6 +72,12 @@
   width: 100%;
 }
 
+#app-subpage-center > .app-subpage {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
 .app-subpage {
   position: relative;
   border: 1px solid rgba(20, 184, 166, 0.14);
@@ -2290,5 +2296,378 @@
     flex: 1 1 auto;
     max-width: none;
   }
+}
+
+/* Admin shell unificado */
+.admin-shell {
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 8px 16px;
+}
+
+#app-subpage-center:has(.admin-shell) {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-shell__sidebar {
+  flex: 0 0 200px;
+  padding: 16px 12px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  align-self: flex-start;
+  position: sticky;
+  top: 12px;
+}
+
+.admin-shell__sidebar-title {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.admin-shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-shell__nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-shell__nav-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.admin-shell__nav-btn--active {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.28);
+  color: #5eead4;
+}
+
+.admin-shell__nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-shell__nav-btn--group {
+  justify-content: flex-start;
+}
+
+.admin-shell__nav-label {
+  flex: 1;
+  text-align: left;
+}
+
+.admin-shell__nav-chevron {
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+.admin-shell__nav-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+  margin-left: 8px;
+  border-left: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.admin-shell__nav-btn--sub {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.admin-shell__tenant-meta--global {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.admin-ia__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-shell__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.admin-shell__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.admin-shell__header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 184, 166, 0.12);
+  color: #2dd4bf;
+}
+
+.admin-shell__tenant-field {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-shell__tenant-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.admin-shell__tenant-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.admin-shell__content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+
+.admin-shell__error {
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+/* Admin IA page */
+.admin-ia {
+  padding: 4px 4px 24px;
+}
+
+.admin-ia__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-ia__title {
+  margin: 4px 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.admin-ia__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.admin-ia__tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-ia__tabs button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(15, 23, 42, 0.4);
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.admin-ia__tabs button.is-active {
+  border-color: rgba(20, 184, 166, 0.35);
+  background: rgba(20, 184, 166, 0.1);
+  color: #5eead4;
+}
+
+.admin-ia__table-wrap {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.admin-ia__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-ia__table th,
+.admin-ia__table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.admin-ia__table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.admin-ia__na {
+  color: #475569;
+}
+
+.admin-ia__global {
+  margin-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  padding-top: 12px;
+}
+
+.admin-ia__global-toggle {
+  background: transparent;
+  border: 0;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+.admin-ia__global-body {
+  margin-top: 8px;
+}
+
+.admin-ia__global-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.admin-ia__worker-preview {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.admin-ia__worker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: none;
+}
+
+.admin-ia__default-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.admin-ia__default-row .admin-mgmt__field {
+  min-width: 200px;
+}
+
+.admin-ia__section-toggle {
+  background: transparent;
+  border: 0;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+}
+
+.admin-ia__map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-ia__key-input {
+  min-width: 180px;
+  flex: 1 1 180px;
+  max-width: 320px;
+}
+
+.admin-ia__key-code {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.admin-ia__row-remove {
+  background: transparent;
+  border: 0;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.admin-ia__row-remove:hover {
+  text-decoration: underline;
+}
+
+.admin-ia__empty-row {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-ia__advanced {
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  padding-top: 12px;
+}
+
+.admin-ia__global-body .admin-ia__worker-form {
+  margin-top: 12px;
 }
 

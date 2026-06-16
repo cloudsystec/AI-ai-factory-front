@@ -4,6 +4,9 @@ import {
   TUTORIAL_PROJECT_SLUG,
 } from "../tutorial/mockData.js";
 
+export const DISCOVERY_STATIC_WELCOME =
+  "Olá! Sou o assistente PO/SM. Descreva ou cole o escopo do projeto — extraio o checklist automaticamente e só pergunto o que faltar.";
+
 export const DISCOVERY_TOPIC_LABELS = {
   problem: "Problema e objetivo",
   personas: "Utilizadores / personas",
@@ -65,6 +68,10 @@ function buildPartialDecisions(resolvedKeys) {
   return all;
 }
 
+function countResolved(decisions) {
+  return DISCOVERY_TOPIC_KEYS.filter((k) => decisions[k]?.resolved === true).length;
+}
+
 /**
  * @param {string} userText
  * @param {number} messageCount
@@ -80,7 +87,7 @@ export function getMockDiscoveryResponse(userText, messageCount = 0) {
   if (!isFood) {
     return {
       assistantMessage:
-        "Conte-me qual problema de negócio este produto resolve e para quem — seja o mais concreto possível.",
+        "Descreva o problema de negócio e para quem é o produto — quanto mais detalhe, menos perguntas farei.",
       readyToCreate: false,
       decisions: buildPartialDecisions([]),
       openTopics: ["problem"],
@@ -91,7 +98,7 @@ export function getMockDiscoveryResponse(userText, messageCount = 0) {
     };
   }
 
-  if (messageCount < 1) {
+  if (messageCount <= 1) {
     const decisions = buildPartialDecisions([
       "problem",
       "personas",
@@ -99,14 +106,17 @@ export function getMockDiscoveryResponse(userText, messageCount = 0) {
     ]);
     return {
       assistantMessage:
-        "Entendido. Vou fechar as decisões técnicas — confirma: stack React + Node + PostgreSQL, API REST, sem integrações externas na v1?",
+        "Absorvi objetivo, personas e funcionalidades must-have. O que fica **fora de escopo** na v1?",
       readyToCreate: false,
       decisions,
-      openTopics: ["backend", "persistence"],
+      openTopics: ["outOfScope"],
       proposedName: null,
       proposedSlug: null,
       scopeMd: null,
-      progress: { resolved: 3, total: DISCOVERY_TOPIC_KEYS.length },
+      progress: {
+        resolved: countResolved(decisions),
+        total: DISCOVERY_TOPIC_KEYS.length,
+      },
     };
   }
 

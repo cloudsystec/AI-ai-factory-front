@@ -39,6 +39,7 @@ export default function NewProjectModal({
   onTutorialAutoTypeComplete,
 }) {
   const [ready, setReady] = useState(tutorialMode);
+  const [readinessHint, setReadinessHint] = useState(null);
   const [statusLoading, setStatusLoading] = useState(!tutorialMode);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -59,9 +60,15 @@ export default function NewProjectModal({
       try {
         const res = await apiFetch("/api/project-discovery/status");
         const data = await res.json().catch(() => ({}));
-        if (!cancelled) setReady(Boolean(data.ready));
+        if (!cancelled) {
+          setReady(Boolean(data.ready));
+          setReadinessHint(data.readinessHint || null);
+        }
       } catch {
-        if (!cancelled) setReady(false);
+        if (!cancelled) {
+          setReady(false);
+          setReadinessHint(null);
+        }
       } finally {
         if (!cancelled) setStatusLoading(false);
       }
@@ -138,8 +145,8 @@ export default function NewProjectModal({
             <p className="msg msg--muted">A verificar configuração…</p>
           ) : !ready ? (
             <p className="msg msg--error">
-              Configure pelo menos um bot e a chave Admin Cursor do tenant antes de
-              criar projetos. Contate o administrador da plataforma.
+              {readinessHint ||
+                "Plataforma IA indisponível. Contate o administrador da plataforma."}
             </p>
           ) : null}
 
@@ -160,6 +167,7 @@ export default function NewProjectModal({
                 decisions={discovery.decisions}
                 progress={discovery.progress}
                 topicLabels={discovery.topicLabels}
+                openTopics={discovery.openTopics}
                 readyToCreate={discovery.readyToCreate}
                 proposedName={discovery.proposedName}
                 proposedSlug={discovery.proposedSlug}

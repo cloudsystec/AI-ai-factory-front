@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import { useOptionalAdminTenant } from "./context/AdminTenantContext.jsx";
 import { AGENT_ROLE_KEYS } from "./agentRoleKeys.js";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 import GlassSelect from "./components/GlassSelect.jsx";
@@ -7,7 +8,9 @@ import GlassSelect from "./components/GlassSelect.jsx";
 /**
  * Admin plataforma — templates e overrides de agentes.
  */
-export default function AdminPage() {
+export default function AdminPage({ embedded = false }) {
+  const adminCtx = useOptionalAdminTenant();
+  const useAdminTenantCtx = embedded && adminCtx;
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState("");
   const [projects, setProjects] = useState([]);
@@ -19,6 +22,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState(null);
 
   const loadTenants = useCallback(async () => {
+    if (useAdminTenantCtx) return;
     const res = await apiFetch("/admin/tenants");
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
@@ -26,15 +30,17 @@ export default function AdminPage() {
     if (data.tenants?.[0]) {
       setTenantId((prev) => prev || data.tenants[0].id);
     }
-  }, []);
+  }, [useAdminTenantCtx]);
+
+  const activeTenantId = useAdminTenantCtx ? adminCtx.tenantId : tenantId;
 
   const loadProjects = useCallback(async () => {
-    if (!tenantId) {
+    if (!activeTenantId) {
       setProjects([]);
       setProjectSlug("");
       return;
     }
-    const res = await apiFetch(`/admin/tenants/${tenantId}/projects`);
+    const res = await apiFetch(`/admin/tenants/${activeTenantId}/projects`);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const list = data.projects || [];
@@ -43,7 +49,7 @@ export default function AdminPage() {
       if (prev && list.some((p) => p.slug === prev)) return prev;
       return list[0]?.slug || "";
     });
-  }, [tenantId]);
+  }, [activeTenantId]);
 
   const loadContent = useCallback(async () => {
     setError(null);
@@ -51,34 +57,34 @@ export default function AdminPage() {
     const path =
       mode === "templates"
         ? `/admin/agent-templates`
-        : `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents`;
+        : `/admin/tenants/${activeTenantId}/projects/${encodeURIComponent(projectSlug)}/agents`;
     const res = await apiFetch(path);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const list = mode === "templates" ? data.templates : data.overrides;
     const row = (list || []).find((r) => r.role_key === roleKey);
     setContent(row?.content || "");
-  }, [mode, tenantId, projectSlug, roleKey]);
+  }, [mode, activeTenantId, projectSlug, roleKey]);
 
   useEffect(() => {
     loadTenants().catch((e) => setError(e.message));
   }, [loadTenants]);
 
   useEffect(() => {
-    if (mode === "project" && tenantId) {
+    if (mode === "project" && activeTenantId) {
       loadProjects().catch((e) => setError(e.message));
     }
-  }, [mode, tenantId, loadProjects]);
+  }, [mode, activeTenantId, loadProjects]);
 
   useEffect(() => {
     if (mode === "templates") {
       loadContent().catch((e) => setError(e.message));
       return;
     }
-    if (mode === "project" && tenantId && projectSlug) {
+    if (mode === "project" && activeTenantId && projectSlug) {
       loadContent().catch((e) => setError(e.message));
     }
-  }, [loadContent, mode, tenantId, projectSlug]);
+  }, [loadContent, mode, activeTenantId, projectSlug]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -88,7 +94,7 @@ export default function AdminPage() {
       const url =
         mode === "templates"
           ? `/admin/agent-templates/${roleKey}`
-          : `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents/${roleKey}`;
+          : `/admin/tenants/${activeTenantId}/projects/${encodeURIComponent(projectSlug)}/agents/${roleKey}`;
       const res = await apiFetch(url, {
         method: "PUT",
         body: JSON.stringify({ content }),
@@ -108,7 +114,7 @@ export default function AdminPage() {
   }
 
   async function handleReset() {
-    if (!tenantId || !projectSlug) return;
+    if (!activeTenantId || !projectSlug) return;
     if (
       !window.confirm(
         `Restaurar agentes do projeto "${projectSlug}" aos templates da plataforma?`
@@ -118,7 +124,7 @@ export default function AdminPage() {
     }
     setError(null);
     const res = await apiFetch(
-      `/admin/tenants/${tenantId}/projects/${encodeURIComponent(projectSlug)}/agents/reset`,
+      `/admin/tenants/${activeTenantId}/projects/${encodeURIComponent(projectSlug)}/agents/reset`,
       { method: "POST" }
     );
     if (!res.ok) throw new Error(await res.text());
@@ -126,13 +132,8 @@ export default function AdminPage() {
     await loadContent();
   }
 
-  return (
-    <AppSubpagePanel
-      className="admin-page"
-      eyebrow="Plataforma"
-      title="Admin — Agentes"
-      subtitle="Templates globais e overrides por projeto."
-    >
+  const inner = (
+    <>
       <div className="admin-page__toolbar">
         <label className="admin-page__field">
           <span className="admin-page__label">Modo</span>
@@ -143,6 +144,7 @@ export default function AdminPage() {
         </label>
         {mode === "project" && (
           <>
+            {!useAdminTenantCtx && (
             <label className="admin-page__field">
               <span className="admin-page__label">Tenant</span>
               <GlassSelect
@@ -156,6 +158,7 @@ export default function AdminPage() {
                 ))}
               </GlassSelect>
             </label>
+            )}
             <label className="admin-page__field">
               <span className="admin-page__label">Projeto</span>
               <GlassSelect
@@ -218,6 +221,25 @@ export default function AdminPage() {
           </button>
         </div>
       </form>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="admin-page admin-page--embedded">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <AppSubpagePanel
+      className="admin-page"
+      eyebrow="Plataforma"
+      title="Admin — Agentes"
+      subtitle="Templates globais e overrides por projeto."
+    >
+      {inner}
     </AppSubpagePanel>
   );
 }

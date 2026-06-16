@@ -32,6 +32,7 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReady, setHelpReady] = useState(false);
+  const [helpReadinessHint, setHelpReadinessHint] = useState(null);
 
   const displayName =
     projectName?.trim() || projectSlug?.trim() || "";
@@ -82,9 +83,15 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
           `/api/projects/${encodeURIComponent(projectSlug)}/agents/help/status`
         );
         const data = await res.json().catch(() => ({}));
-        if (!cancelled) setHelpReady(Boolean(data.ready));
+        if (!cancelled) {
+          setHelpReady(Boolean(data.ready));
+          setHelpReadinessHint(data.readinessHint || null);
+        }
       } catch {
-        if (!cancelled) setHelpReady(false);
+        if (!cancelled) {
+          setHelpReady(false);
+          setHelpReadinessHint(null);
+        }
       }
     }
     loadHelpStatus();
@@ -208,7 +215,8 @@ export default function AgentsPage({ projectSlug, projectName = null }) {
                 title={
                   helpReady
                     ? undefined
-                    : "Ajuda IA indisponível — configure bot e chave Admin"
+                    : helpReadinessHint ||
+                      "Ajuda IA indisponível — verifique bot e plataforma IA"
                 }
               >
                 <FontAwesomeIcon icon={faWandMagicSparkles} aria-hidden />

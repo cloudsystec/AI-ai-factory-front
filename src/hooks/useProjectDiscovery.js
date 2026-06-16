@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api.js";
-import { getMockDiscoveryResponse } from "../tutorial/mockProjectDiscoveryResponses.js";
+import { getMockDiscoveryResponse, DISCOVERY_STATIC_WELCOME } from "../tutorial/mockProjectDiscoveryResponses.js";
 
 /**
  * @param {{
@@ -20,6 +20,12 @@ export function useProjectDiscovery(opts = {}) {
   const tutorialNotifiedRef = useRef(false);
   const userMessageCountRef = useRef(0);
   const hadDraftRef = useRef(false);
+  const onDraftCreatedRef = useRef(onDraftCreated);
+  const initSeqRef = useRef(0);
+
+  useEffect(() => {
+    onDraftCreatedRef.current = onDraftCreated;
+  }, [onDraftCreated]);
 
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -37,35 +43,35 @@ export function useProjectDiscovery(opts = {}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
 
-  const applySession = useCallback(
-    (data) => {
-      setSessionId(data.sessionId ?? null);
-      setMessages(Array.isArray(data.messages) ? data.messages : []);
-      setDecisions(data.decisions || {});
-      setOpenTopics(data.openTopics || []);
-      setReadyToCreate(Boolean(data.readyToCreate));
-      setProposedName(data.proposedName ?? null);
-      setProposedSlug(data.proposedSlug ?? null);
-      setScopeMd(data.scopeMd ?? null);
+  const applySession = useCallback((data) => {
+    setSessionId(data.sessionId ?? null);
+    setMessages(Array.isArray(data.messages) ? data.messages : []);
+    setDecisions(data.decisions || {});
+    setOpenTopics(data.openTopics || []);
+    setReadyToCreate(Boolean(data.readyToCreate));
+    setProposedName(data.proposedName ?? null);
+    setProposedSlug(data.proposedSlug ?? null);
+    setScopeMd(data.scopeMd ?? null);
 
-      const nowHasDraft = Boolean(data.hasDraftProject);
-      const slug = data.draftProjectSlug ?? null;
-      if (nowHasDraft && !hadDraftRef.current && slug) {
-        onDraftCreated?.(slug);
-      }
-      if (nowHasDraft) {
-        hadDraftRef.current = true;
-      }
-      setHasDraftProject(nowHasDraft);
-      setDraftProjectSlug(slug);
+    const nowHasDraft = Boolean(data.hasDraftProject);
+    const slug = data.draftProjectSlug ?? null;
+    if (nowHasDraft && !hadDraftRef.current && slug) {
+      onDraftCreatedRef.current?.(slug);
+    }
+    if (nowHasDraft) {
+      hadDraftRef.current = true;
+    }
+    setHasDraftProject(nowHasDraft);
+    setDraftProjectSlug(slug);
 
-      if (data.progress) setProgress(data.progress);
-      if (data.topicLabels) setTopicLabels(data.topicLabels);
-    },
-    [onDraftCreated]
-  );
+    if (data.progress) setProgress(data.progress);
+    if (data.topicLabels) setTopicLabels(data.topicLabels);
+  }, []);
 
-  const startSession = useCallback(async () => {
+  useEffect(() => {
+    hadDraftRef.current = false;
+    const initSeq = ++initSeqRef.current;
+
     if (tutorialMode) {
       const mock = getMockDiscoveryResponse("", 0);
       applySession({
@@ -73,47 +79,57 @@ export function useProjectDiscovery(opts = {}) {
         messages: [
           {
             role: "assistant",
-            content:
-              "Olá! Sou o assistente PO/SM. Vamos definir o projeto juntos — nada será assumido sem a sua confirmação. Qual problema de negócio quer resolver e para quem?",
+            content: DISCOVERY_STATIC_WELCOME,
           },
         ],
         decisions: mock.decisions,
-        openTopics: mock.openTopics,
+        openTopics: ["problem"],
         readyToCreate: false,
         progress: mock.progress,
         topicLabels: {},
       });
       setLoading(false);
-      return;
+      setError(null);
+      return undefined;
     }
 
-    setLoading(true);
-    setError(null);
-    try {
-      const res = resumeSessionId
-        ? await apiFetch(
-            `/api/project-discovery/sessions/${encodeURIComponent(resumeSessionId)}`
-          )
-        : await apiFetch("/api/project-discovery/sessions", {
-            method: "POST",
-          });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      if (data.hasDraftProject) {
-        hadDraftRef.current = true;
+    let cancelled = false;
+
+    async function initSession() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = resumeSessionId
+          ? await apiFetch(
+              `/api/project-discovery/sessions/${encodeURIComponent(resumeSessionId)}`
+            )
+          : await apiFetch("/api/project-discovery/sessions", {
+              method: "POST",
+            });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || initSeq !== initSeqRef.current) return;
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (data.hasDraftProject) {
+          hadDraftRef.current = true;
+        }
+        applySession(data);
+      } catch (err) {
+        if (!cancelled && initSeq === initSeqRef.current) {
+          setError(err.message || String(err));
+        }
+      } finally {
+        if (!cancelled && initSeq === initSeqRef.current) {
+          setLoading(false);
+        }
       }
-      applySession(data);
-    } catch (err) {
-      setError(err.message || String(err));
-    } finally {
-      setLoading(false);
     }
-  }, [applySession, resumeSessionId, tutorialMode]);
 
-  useEffect(() => {
-    hadDraftRef.current = false;
-    startSession();
-  }, [startSession]);
+    initSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applySession, resumeSessionId, tutorialMode]);
 
   const sendMessage = useCallback(
     async (text) => {
@@ -208,6 +224,5 @@ export function useProjectDiscovery(opts = {}) {
     error,
     sendMessage,
     cancelSession,
-    startSession,
   };
 }

@@ -1542,6 +1542,19 @@ body.app-body {
   color: #e2e8f0;
 }
 
+.project-discovery-decisions__item--current {
+  color: #f8fafc;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 6px;
+  margin: 0 -6px;
+  padding: 8px 6px;
+  border-bottom-color: transparent;
+}
+
+.project-discovery-decisions__item--current strong {
+  color: #38bdf8;
+}
+
 .project-discovery-decisions__check {
   flex-shrink: 0;
   width: 1.2rem;

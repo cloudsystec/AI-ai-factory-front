@@ -8,6 +8,7 @@ import {
   faServer,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
+import { useOptionalAdminTenant } from "./context/AdminTenantContext.jsx";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 import AppModal from "./components/AppModal.jsx";
 import GlassSelect from "./components/GlassSelect.jsx";
@@ -23,7 +24,9 @@ const PLAN_LABELS = {
 /**
  * Admin plataforma — bots e workers por tenant.
  */
-export default function AdminWorkersPage() {
+export default function AdminWorkersPage({ embedded = false }) {
+  const adminCtx = useOptionalAdminTenant();
+  const useAdminTenantCtx = embedded && adminCtx;
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState("");
   const [slotsMax, setSlotsMax] = useState(1);
@@ -38,6 +41,7 @@ export default function AdminWorkersPage() {
   const [editSlot, setEditSlot] = useState(null);
 
   const loadTenants = useCallback(async () => {
+    if (useAdminTenantCtx) return;
     const res = await apiFetch("/admin/tenants");
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
@@ -45,14 +49,17 @@ export default function AdminWorkersPage() {
     if (data.tenants?.[0]) {
       setTenantId((prev) => prev || data.tenants[0].id);
     }
-  }, []);
+  }, [useAdminTenantCtx]);
+
+  const activeTenantId = useAdminTenantCtx ? adminCtx.tenantId : tenantId;
+  const activeTenants = useAdminTenantCtx ? adminCtx.tenants : tenants;
 
   const loadWorkers = useCallback(async () => {
-    if (!tenantId) {
+    if (!activeTenantId) {
       setWorkers([]);
       return;
     }
-    const res = await apiFetch(`/admin/tenants/${tenantId}/workers`);
+    const res = await apiFetch(`/admin/tenants/${activeTenantId}/workers`);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     setSlotsMax(data.slotsMax ?? 1);
@@ -65,7 +72,7 @@ export default function AdminWorkersPage() {
       };
     }
     setDrafts(next);
-  }, [tenantId]);
+  }, [activeTenantId]);
 
   useEffect(() => {
     loadTenants().catch((e) => setError(e.message));
@@ -123,7 +130,7 @@ export default function AdminWorkersPage() {
         body.cursorWorkerApiKey = d.cursorWorkerApiKey.trim();
       }
       const res = await apiFetch(
-        `/admin/tenants/${tenantId}/workers/${slot}`,
+        `/admin/tenants/${activeTenantId}/workers/${slot}`,
         { method: "PUT", body: JSON.stringify(body) }
       );
       const data = await res.json().catch(() => ({}));
@@ -153,7 +160,7 @@ export default function AdminWorkersPage() {
     setMessage(null);
     try {
       const res = await apiFetch(
-        `/admin/tenants/${tenantId}/cursor-admin-key`,
+        `/admin/tenants/${activeTenantId}/cursor-admin-key`,
         {
           method: "PUT",
           body: JSON.stringify({ cursorAdminApiKey: tenantAdminKey.trim() }),
@@ -173,7 +180,7 @@ export default function AdminWorkersPage() {
     setMessage(null);
     try {
       const res = await apiFetch(
-        `/admin/tenants/${tenantId}/worker/provision`,
+        `/admin/tenants/${activeTenantId}/worker/provision`,
         { method: "POST" }
       );
       const data = await res.json().catch(() => ({}));
@@ -194,27 +201,14 @@ export default function AdminWorkersPage() {
     }
   }
 
-  const selectedTenant = tenants.find((t) => t.id === tenantId);
+  const selectedTenant = activeTenants.find((t) => t.id === activeTenantId);
   const editWorker = editSlot != null ? workers.find((w) => w.slot === editSlot) : null;
   const botsConfigured = selectedTenant?.botsConfiguredCount ?? 0;
   const botsTotal =
     selectedTenant?.botsTotal ?? selectedTenant?.agent_slots_max ?? slotsMax;
 
-  return (
-    <AppSubpagePanel
-      className="users-page admin-workers-page admin-mgmt-page"
-      eyebrow="Plataforma"
-      title="Bots / Workers"
-      subtitle="Container Docker por tenant — cada slot é um bot com email e API key Cursor"
-      headerActions={
-        selectedTenant ? (
-          <span className="admin-mgmt__quota" title="Bots configurados">
-            <FontAwesomeIcon icon={faRobot} aria-hidden />
-            {botsConfigured}/{botsTotal}
-          </span>
-        ) : null
-      }
-    >
+  const inner = (
+    <>
       <div className="admin-mgmt">
         {(error || message) && (
           <div className="admin-mgmt__alerts" role="status">
@@ -223,6 +217,7 @@ export default function AdminWorkersPage() {
           </div>
         )}
 
+        {!useAdminTenantCtx && (
         <section className="admin-mgmt__company">
           <div className="admin-mgmt__company-bar">
             <div className="admin-mgmt__company-icon" aria-hidden>
@@ -268,6 +263,7 @@ export default function AdminWorkersPage() {
             </div>
           </div>
         </section>
+        )}
 
         {loading ? (
           <p className="msg msg--muted admin-mgmt__empty">Carregando…</p>
@@ -505,6 +501,29 @@ export default function AdminWorkersPage() {
           </form>
         </AppModal>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return inner;
+  }
+
+  return (
+    <AppSubpagePanel
+      className="users-page admin-workers-page admin-mgmt-page"
+      eyebrow="Plataforma"
+      title="Bots / Workers"
+      subtitle="Container Docker por tenant — cada slot é um bot com email e API key Cursor"
+      headerActions={
+        selectedTenant ? (
+          <span className="admin-mgmt__quota" title="Bots configurados">
+            <FontAwesomeIcon icon={faRobot} aria-hidden />
+            {botsConfigured}/{botsTotal}
+          </span>
+        ) : null
+      }
+    >
+      {inner}
     </AppSubpagePanel>
   );
 }

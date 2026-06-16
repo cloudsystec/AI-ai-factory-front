@@ -11,6 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "./api.js";
 import { useCapabilities, useSession } from "./SessionContext.jsx";
+import { useOptionalAdminTenant } from "./context/AdminTenantContext.jsx";
 import AppSubpagePanel from "./components/AppSubpagePanel.jsx";
 import AppModal from "./components/AppModal.jsx";
 import GlassSelect from "./components/GlassSelect.jsx";
@@ -48,9 +49,11 @@ function userInitial(email) {
 /**
  * Gestão de usuários da empresa (dentro do dashboard).
  */
-export default function UsersPage() {
+export default function UsersPage({ embedded = false }) {
   const caps = useCapabilities();
   const { isPlatformAdmin, session } = useSession();
+  const adminCtx = useOptionalAdminTenant();
+  const useAdminTenantCtx = embedded && isPlatformAdmin && adminCtx;
 
   const [tenants, setTenants] = useState([]);
   const [tenantId, setTenantId] = useState(session?.tenantId || "");
@@ -97,7 +100,7 @@ export default function UsersPage() {
   const canOpenPage = caps.canManageUsers || isPlatformAdmin;
 
   const loadTenants = useCallback(async () => {
-    if (!isPlatformAdmin) return;
+    if (!isPlatformAdmin || useAdminTenantCtx) return;
     const res = await apiFetch("/admin/tenants");
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
@@ -107,15 +110,18 @@ export default function UsersPage() {
       if (prev && list.some((t) => t.id === prev)) return prev;
       return list[0]?.id || prev;
     });
-  }, [isPlatformAdmin]);
+  }, [isPlatformAdmin, useAdminTenantCtx]);
+
+  const activeTenantId = useAdminTenantCtx ? adminCtx.tenantId : tenantId;
+  const activeTenants = useAdminTenantCtx ? adminCtx.tenants : tenants;
 
   const loadUsers = useCallback(async () => {
-    if (!tenantId) {
+    if (!activeTenantId) {
       setUsers([]);
       setLoading(false);
       return;
     }
-    const base = usersApiBase(isPlatformAdmin, tenantId);
+    const base = usersApiBase(isPlatformAdmin, activeTenantId);
     const res = await apiFetch(base);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -125,7 +131,7 @@ export default function UsersPage() {
     setUsers(data.users || []);
     setUsersUsed(data.usersUsed ?? 0);
     setUsersMax(data.usersMax ?? 5);
-  }, [isPlatformAdmin, tenantId]);
+  }, [isPlatformAdmin, activeTenantId]);
 
   useEffect(() => {
     if (!canOpenPage) return;
@@ -156,7 +162,7 @@ export default function UsersPage() {
     e.preventDefault();
     clearFeedback();
     try {
-      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const base = usersApiBase(isPlatformAdmin, activeTenantId);
       const res = await apiFetch(base, {
         method: "POST",
         body: JSON.stringify({
@@ -204,7 +210,7 @@ export default function UsersPage() {
     clearFeedback();
     setActionLoading(`unlock-${user.id}`);
     try {
-      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const base = usersApiBase(isPlatformAdmin, activeTenantId);
       const res = await apiFetch(`${base}/${user.id}/unlock`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
@@ -228,7 +234,7 @@ export default function UsersPage() {
     clearFeedback();
     setActionLoading(`reset-${user.id}`);
     try {
-      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const base = usersApiBase(isPlatformAdmin, activeTenantId);
       const res = await apiFetch(`${base}/${user.id}/reset-temporary-password`, {
         method: "POST",
       });
@@ -247,7 +253,7 @@ export default function UsersPage() {
     e.preventDefault();
     if (!editUser) return;
     clearFeedback();
-    const base = usersApiBase(isPlatformAdmin, tenantId);
+    const base = usersApiBase(isPlatformAdmin, activeTenantId);
     try {
       if (editRole !== editUser.role) {
         const res = await apiFetch(`${base}/${editUser.id}`, {
@@ -270,7 +276,7 @@ export default function UsersPage() {
     if (!window.confirm(`Remover ${user.email}?`)) return;
     clearFeedback();
     try {
-      const base = usersApiBase(isPlatformAdmin, tenantId);
+      const base = usersApiBase(isPlatformAdmin, activeTenantId);
       const res = await apiFetch(`${base}/${user.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
@@ -284,11 +290,11 @@ export default function UsersPage() {
 
   async function handleBlockTenant(e) {
     e.preventDefault();
-    if (!tenantId) return;
+    if (!activeTenantId) return;
     setBlockLoading(true);
     clearFeedback();
     try {
-      const res = await apiFetch(`/admin/tenants/${tenantId}/block`, {
+      const res = await apiFetch(`/admin/tenants/${activeTenantId}/block`, {
         method: "POST",
         body: JSON.stringify({ reason: blockReason, note: blockNote.trim() || undefined }),
       });
@@ -297,7 +303,7 @@ export default function UsersPage() {
       setMessage("Empresa bloqueada. Usuários perderão acesso imediatamente.");
       setShowBlockModal(false);
       setBlockNote("");
-      await loadTenants();
+      await (useAdminTenantCtx ? adminCtx.reloadTenants() : loadTenants());
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -306,7 +312,7 @@ export default function UsersPage() {
   }
 
   async function handleUnblockTenant() {
-    if (!tenantId) return;
+    if (!activeTenantId) return;
     if (
       !window.confirm(
         "Desbloquear esta empresa? Os usuários voltarão a conseguir entrar."
@@ -317,13 +323,13 @@ export default function UsersPage() {
     clearFeedback();
     setBlockLoading(true);
     try {
-      const res = await apiFetch(`/admin/tenants/${tenantId}/unblock`, {
+      const res = await apiFetch(`/admin/tenants/${activeTenantId}/unblock`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText);
       setMessage("Empresa desbloqueada.");
-      await loadTenants();
+      await (useAdminTenantCtx ? adminCtx.reloadTenants() : loadTenants());
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -366,7 +372,7 @@ export default function UsersPage() {
       setNewTenantName("");
       setNewTenantPlan("starter");
       setNewAuditorEmail("");
-      await loadTenants();
+      await (useAdminTenantCtx ? adminCtx.reloadTenants() : loadTenants());
       if (data.tenant?.id) setTenantId(data.tenant.id);
     } catch (err) {
       setError(err.message);
@@ -381,26 +387,11 @@ export default function UsersPage() {
     );
   }
 
-  const selectedTenant = tenants.find((t) => t.id === tenantId);
+  const selectedTenant = activeTenants.find((t) => t.id === activeTenantId);
   const quotaPct = usersMax > 0 ? Math.min(100, (usersUsed / usersMax) * 100) : 0;
 
-  return (
-    <AppSubpagePanel
-      className="users-page admin-mgmt-page"
-      eyebrow="Equipe"
-      title="Usuários"
-      subtitle={
-        isPlatformAdmin
-          ? "Gerenciamento da equipe por empresa"
-          : "Membros com acesso à sua empresa"
-      }
-      headerActions={
-        <span className="admin-mgmt__quota" title="Quota do plano">
-          <FontAwesomeIcon icon={faUsers} aria-hidden />
-          {usersUsed} / {usersMax}
-        </span>
-      }
-    >
+  const inner = (
+    <>
       <div className="admin-mgmt">
         {(error || message || workerSetupInfo) && (
           <div className="admin-mgmt__alerts" role="status">
@@ -444,7 +435,7 @@ export default function UsersPage() {
           </div>
         )}
 
-        {isPlatformAdmin && (
+        {isPlatformAdmin && !useAdminTenantCtx && (
           <section className="admin-mgmt__company">
             <div className="admin-mgmt__company-bar">
               <div className="admin-mgmt__company-icon" aria-hidden>
@@ -913,6 +904,31 @@ export default function UsersPage() {
           </form>
         </AppModal>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return inner;
+  }
+
+  return (
+    <AppSubpagePanel
+      className="users-page admin-mgmt-page"
+      eyebrow="Equipe"
+      title="Usuários"
+      subtitle={
+        isPlatformAdmin
+          ? "Gerenciamento da equipe por empresa"
+          : "Membros com acesso à sua empresa"
+      }
+      headerActions={
+        <span className="admin-mgmt__quota" title="Quota do plano">
+          <FontAwesomeIcon icon={faUsers} aria-hidden />
+          {usersUsed} / {usersMax}
+        </span>
+      }
+    >
+      {inner}
     </AppSubpagePanel>
   );
 }

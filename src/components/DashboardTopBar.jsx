@@ -157,7 +157,6 @@ export default function DashboardTopBar({
   isPlatformAdmin,
   onUsers,
   onAgents,
-  onAdminWorkers,
   onAdmin,
   onLogout,
   activeView = "dashboard",
@@ -181,6 +180,9 @@ export default function DashboardTopBar({
   newProjectTutorialTarget = null,
   agentsNavTutorialTarget = null,
   pipelineStepTutorialTargets = null,
+  projectPhase = "planning",
+  onProjectPhaseChange,
+  executionUnlocked = false,
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -213,14 +215,11 @@ export default function DashboardTopBar({
   }, [dropdownOpen, overflowOpen]);
 
   const overflowItems = [
-    (canManageUsers || isPlatformAdmin) && onUsers
+    canManageUsers && !isPlatformAdmin && onUsers
       ? { key: "users", label: "Usuários", onClick: onUsers, active: activeView === "users" }
       : null,
     canExecute && onAgents
       ? { key: "agents", label: "Agentes", onClick: onAgents, active: activeView === "agents" }
-      : null,
-    isPlatformAdmin && onAdminWorkers
-      ? { key: "adminWorkers", label: "Bots", onClick: onAdminWorkers, active: activeView === "adminWorkers" }
       : null,
     isPlatformAdmin && onAdmin
       ? { key: "admin", label: "Admin", onClick: onAdmin, active: activeView === "admin" }
@@ -263,6 +262,37 @@ export default function DashboardTopBar({
       </button>
 
       <div className="flex flex-1 max-w-3xl mx-1 sm:mx-2 md:mx-4 lg:mx-8 items-center gap-2 md:gap-4 min-w-0" id="header-progress">
+        {onProjectPhaseChange && (
+          <div
+            className="planning-phase-toggle planning-phase-toggle--header flex-shrink-0"
+            role="tablist"
+            aria-label="Fase do projeto"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={projectPhase === "planning"}
+              className={projectPhase === "planning" ? "is-active" : ""}
+              onClick={() => onProjectPhaseChange("planning")}
+            >
+              Planejamento
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={projectPhase === "execution"}
+              className={projectPhase === "execution" ? "is-active" : ""}
+              onClick={() => onProjectPhaseChange("execution")}
+              title={
+                !executionUnlocked
+                  ? "Aprove Layout e Infra para executar tasks"
+                  : undefined
+              }
+            >
+              Execução
+            </button>
+          </div>
+        )}
         <div className="relative min-w-0 flex-1 md:flex-none" id="project-dropdown-wrap" ref={dropdownRef}>
           <div className="flex items-center gap-1.5 md:gap-2">
             <button
@@ -509,7 +539,7 @@ export default function DashboardTopBar({
           </span>
         </div>
         <div className="dashboard-topbar__nav-desktop">
-          {(canManageUsers || isPlatformAdmin) && onUsers && (
+          {canManageUsers && !isPlatformAdmin && onUsers && (
             <button
               type="button"
               className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "users" ? " btn-glass--active" : " text-slate-300"}`}
@@ -527,15 +557,6 @@ export default function DashboardTopBar({
             >
               <FontAwesomeIcon icon={faRobot} className="text-violet-400 text-dash-body" />
               <span className={`text-dash-body${activeView === "agents" ? "" : " text-slate-300"}`}>Agentes</span>
-            </button>
-          )}
-          {isPlatformAdmin && onAdminWorkers && (
-            <button
-              type="button"
-              className={`btn-glass px-3 py-2 rounded-xl text-dash-body${activeView === "adminWorkers" ? " btn-glass--active" : " text-slate-300"}`}
-              onClick={onAdminWorkers}
-            >
-              Bots
             </button>
           )}
           {isPlatformAdmin && onAdmin && (

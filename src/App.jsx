@@ -16,8 +16,7 @@ import MicrosDetailModal from "./MicrosDetailModal.jsx";
 import MacroDetailModal from "./MacroDetailModal.jsx";
 import TasksDetailModal from "./TasksDetailModal.jsx";
 import ProjectCompletionModal from "./ProjectCompletionModal.jsx";
-import AdminPage from "./AdminPage.jsx";
-import AdminWorkersPage from "./AdminWorkersPage.jsx";
+import AdminShell from "./components/admin/AdminShell.jsx";
 import UsersPage from "./UsersPage.jsx";
 import AgentsPage from "./AgentsPage.jsx";
 import DashboardShell from "./layout/DashboardShell.jsx";
@@ -42,6 +41,8 @@ import {
 import { useCapabilities, useSession } from "./SessionContext.jsx";
 import { useSocket } from "./useSocket.jsx";
 import ProjectCopilotWidget from "./components/ProjectCopilotWidget.jsx";
+import PlanningHub from "./components/planning/PlanningHub.jsx";
+import { usePlanningState } from "./hooks/usePlanningState.js";
 
 const columns = [
   { key: "todo", title: "A fazer", icon: "📥" },
@@ -366,7 +367,10 @@ export default function App({ onLogout }) {
   const [tasks, setTasks] = useState([]);
   const [scopeState, setScopeState] = useState(null);
   const [autorun, setAutorun] = useState(false);
-  const [skipHumanApproval, setSkipHumanApproval] = useState(true);
+  const [skipHumanApproval, setSkipHumanApproval] = useState(false);
+  const [projectPhase, setProjectPhase] = useState("planning");
+  const [planningGenerating, setPlanningGenerating] = useState(null);
+  const [planningError, setPlanningError] = useState(null);
   const [taskPullRequests, setTaskPullRequests] = useState({});
   const [developSettingsError, setDevelopSettingsError] = useState(null);
   const [showProjectSettings, setShowProjectSettings] = useState(false);
@@ -387,6 +391,69 @@ export default function App({ onLogout }) {
   const [showProjectCompletion, setShowProjectCompletion] = useState(false);
   const [showConnectGitModal, setShowConnectGitModal] = useState(false);
   const [billingSummary, setBillingSummary] = useState(null);
+
+  const {
+    state: planningState,
+    load: loadPlanningState,
+    generate: generatePlanningJob,
+    approve: approvePlanningLane,
+  } = usePlanningState(selectedProject);
+
+  useEffect(() => {
+    if (!tenantId || !selectedProject) return;
+    try {
+      const key = `ai-factory-phase:${tenantId}:${selectedProject}`;
+      const stored = localStorage.getItem(key);
+      if (stored === "planning" || stored === "execution") {
+        setProjectPhase(stored);
+      } else {
+        setProjectPhase("planning");
+      }
+    } catch {
+      setProjectPhase("planning");
+    }
+    setPlanningError(null);
+  }, [tenantId, selectedProject]);
+
+  useEffect(() => {
+    if (!tenantId || !selectedProject) return;
+    try {
+      localStorage.setItem(
+        `ai-factory-phase:${tenantId}:${selectedProject}`,
+        projectPhase
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [tenantId, selectedProject, projectPhase]);
+
+  const handlePlanningGenerate = useCallback(
+    async (kind) => {
+      setPlanningGenerating(kind);
+      setPlanningError(null);
+      try {
+        await generatePlanningJob(kind);
+      } catch (e) {
+        setPlanningError(e.message || String(e));
+      } finally {
+        setPlanningGenerating(null);
+      }
+    },
+    [generatePlanningJob]
+  );
+
+  const handlePlanningApprove = useCallback(
+    async (lane) => {
+      setPlanningError(null);
+      try {
+        await approvePlanningLane(lane);
+        await loadPlanningState();
+      } catch (e) {
+        setPlanningError(e.message || String(e));
+      }
+    },
+    [approvePlanningLane, loadPlanningState]
+  );
 
   const loadProjects = useCallback(async () => {
     try {
@@ -506,12 +573,13 @@ export default function App({ onLogout }) {
     const fallback = setInterval(loadDashboardData, 30_000);
     const unsub = subscribe("dashboard", (ev) => {
       loadDashboardData();
+      loadPlanningState();
       if (ev?.reason === "git-provision" || ev?.reason === "git-migrate") {
         void loadProjects();
       }
     });
     return () => { clearInterval(fallback); unsub(); };
-  }, [selectedProject, loadDashboardData, subscribe]);
+  }, [selectedProject, loadDashboardData, loadPlanningState, subscribe]);
 
   const handleResetProject = useCallback(async (opts = {}) => {
     if (!selectedProject || resetting) return;
@@ -834,7 +902,6 @@ export default function App({ onLogout }) {
               isPlatformAdmin={isPlatformAdmin}
               onUsers={() => toggleAppView("users")}
               onAgents={() => toggleAppView("agents")}
-              onAdminWorkers={() => toggleAppView("adminWorkers")}
               onAdmin={() => toggleAppView("admin")}
               activeView={appView}
               onHome={goDashboard}
@@ -876,9 +943,12 @@ export default function App({ onLogout }) {
                     : selectedProject
                   : null
               }
+              projectPhase={projectPhase}
+              onProjectPhaseChange={setProjectPhase}
+              executionUnlocked={planningState?.executionUnlocked === true}
             />
           }
-          motor={isDashboardView ? <MotorSidebar /> : null}
+          motor={isDashboardView && projectPhase === "execution" ? <MotorSidebar /> : null}
           center={
             isDashboardView ? (
             <div className="flex flex-col flex-1 min-h-0 gap-3">
@@ -917,6 +987,24 @@ export default function App({ onLogout }) {
                   )}
                 </div>
               )}
+              {projectPhase === "planning" ? (
+                <PlanningHub
+                  projectSlug={selectedProject}
+                  planningState={planningState}
+                  planningError={planningError}
+                  canWrite={caps.canWrite}
+                  generatingKind={planningGenerating}
+                  onGenerate={handlePlanningGenerate}
+                  onApprove={handlePlanningApprove}
+                  onRefresh={loadPlanningState}
+                  onOpenMacro={() => setShowMacroDetail(true)}
+                  onOpenMicros={() => setShowMicrosDetail(true)}
+                  onOpenTasks={async () => {
+                    await loadDashboardData();
+                    setShowTasksDetail(true);
+                  }}
+                />
+              ) : (
               <CommandCenter
                 columns={columns}
                 tasks={tasks}
@@ -944,6 +1032,7 @@ export default function App({ onLogout }) {
                   />
                 )}
               />
+              )}
             </div>
             ) : appView === "agents" ? (
               <AgentsPage
@@ -957,9 +1046,7 @@ export default function App({ onLogout }) {
             ) : appView === "users" ? (
               <UsersPage />
             ) : appView === "admin" ? (
-              <AdminPage />
-            ) : appView === "adminWorkers" ? (
-              <AdminWorkersPage />
+              <AdminShell />
             ) : null
           }
           metrics={

@@ -83,8 +83,8 @@ export default function ProjectDiscoveryChat({
       </header>
 
       <p className="project-discovery-chat__hint msg msg--muted">
-        Responda às perguntas do assistente — nada será assumido sem a sua
-        confirmação.
+        Descreva ou cole o escopo — o assistente extrai o checklist e só
+        pergunta o que faltar.
       </p>
 
       <div className="project-discovery-chat__body">
@@ -123,7 +123,7 @@ export default function ProjectDiscoveryChat({
                 e.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder="Responda à pergunta do assistente…"
+            placeholder="Descreva ou cole o escopo do projeto…"
             rows={3}
             disabled={disabled || pending}
             data-tutorial={tutorialInputTarget || undefined}
