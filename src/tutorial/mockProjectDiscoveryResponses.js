@@ -68,10 +68,6 @@ function buildPartialDecisions(resolvedKeys) {
   return all;
 }
 
-function countResolved(decisions) {
-  return DISCOVERY_TOPIC_KEYS.filter((k) => decisions[k]?.resolved === true).length;
-}
-
 /**
  * @param {string} userText
  * @param {number} messageCount
@@ -95,28 +91,6 @@ export function getMockDiscoveryResponse(userText, messageCount = 0) {
       proposedSlug: null,
       scopeMd: null,
       progress: { resolved: 0, total: DISCOVERY_TOPIC_KEYS.length },
-    };
-  }
-
-  if (messageCount <= 1) {
-    const decisions = buildPartialDecisions([
-      "problem",
-      "personas",
-      "mustHaveFeatures",
-    ]);
-    return {
-      assistantMessage:
-        "Absorvi objetivo, personas e funcionalidades must-have. O que fica **fora de escopo** na v1?",
-      readyToCreate: false,
-      decisions,
-      openTopics: ["outOfScope"],
-      proposedName: null,
-      proposedSlug: null,
-      scopeMd: null,
-      progress: {
-        resolved: countResolved(decisions),
-        total: DISCOVERY_TOPIC_KEYS.length,
-      },
     };
   }
 
