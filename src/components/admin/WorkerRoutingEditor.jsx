@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import GlassSelect from "../GlassSelect.jsx";
+import { formatAiProviderLabel } from "../../lib/aiProviderLabels.js";
 import {
   catalogLabelForKey,
   collectMapRowKeys,
@@ -203,9 +204,7 @@ function RoutingMapTable({
                         </td>
                         <td>
                           {readOnly ? (
-                            <span>
-                              {route.provider === "cursor" ? "Cursor" : "Luna"}
-                            </span>
+                            <span>{formatAiProviderLabel(route.provider)}</span>
                           ) : (
                             <GlassSelect
                               value={route.provider}
@@ -225,8 +224,8 @@ function RoutingMapTable({
                                 );
                               }}
                             >
-                              <option value="cursor">Cursor</option>
-                              <option value="luna">Luna</option>
+                              <option value="cursor">{formatAiProviderLabel("cursor")}</option>
+                              <option value="luna">{formatAiProviderLabel("luna")}</option>
                             </GlassSelect>
                           )}
                         </td>
@@ -300,8 +299,8 @@ function RoutingMapTable({
                 value={newProvider}
                 onChange={(e) => setNewProvider(e.target.value)}
               >
-                <option value="luna">Luna</option>
-                <option value="cursor">Cursor</option>
+                <option value="luna">{formatAiProviderLabel("luna")}</option>
+                <option value="cursor">{formatAiProviderLabel("cursor")}</option>
               </GlassSelect>
               {newProvider === "luna" && (
                 <GlassSelect
@@ -395,18 +394,17 @@ export default function WorkerRoutingEditor({
             <span className="admin-mgmt__label">Provedor por defeito</span>
             {readOnly ? (
               <span>
-                {(draft.defaultProvider || globalRouting?.defaultProvider || "luna") ===
-                "cursor"
-                  ? "Cursor"
-                  : "Luna"}
+                {formatAiProviderLabel(
+                  draft.defaultProvider || globalRouting?.defaultProvider || "luna"
+                )}
               </span>
             ) : (
               <GlassSelect
                 value={draft.defaultProvider || globalRouting?.defaultProvider || "luna"}
                 onChange={(e) => patch({ defaultProvider: e.target.value })}
               >
-                <option value="luna">Luna</option>
-                <option value="cursor">Cursor</option>
+                <option value="luna">{formatAiProviderLabel("luna")}</option>
+                <option value="cursor">{formatAiProviderLabel("cursor")}</option>
               </GlassSelect>
             )}
           </label>

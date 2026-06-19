@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../api.js";
 import WorkerRoutingEditor from "./WorkerRoutingEditor.jsx";
 import PortalRoutingTable, { routeFromEffective } from "./PortalRoutingTable.jsx";
+import { formatBotModeLabel } from "../../lib/aiProviderLabels.js";
 import { workerDraftFromEffective } from "../../lib/workerRoutingDraft.js";
 
 function IaTabs({ tab, onTabChange }) {
@@ -180,7 +181,8 @@ export default function AdminIaDefaultPage() {
           {meta?.botMode != null && (
             <>
               {" "}
-              · bot_mode efectivo: <strong>{meta.botMode}</strong>
+              · Modo de agente efectivo:{" "}
+              <strong>{formatBotModeLabel(meta.botMode)}</strong>
             </>
           )}
         </p>

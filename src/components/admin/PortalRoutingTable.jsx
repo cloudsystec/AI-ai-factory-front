@@ -1,8 +1,9 @@
 import React from "react";
 import GlassSelect from "../GlassSelect.jsx";
+import { formatAiProviderLabel } from "../../lib/aiProviderLabels.js";
 
 /**
- * Tabela de roteamento portal (Cursor/Luna por feature).
+ * Tabela de roteamento portal (Online/Luna por feature).
  * @param {{
  *   rows: object[],
  *   lunaProfiles: string[],
@@ -46,8 +47,8 @@ export default function PortalRoutingTable({
                     });
                   }}
                 >
-                  <option value="cursor">Cursor</option>
-                  <option value="luna">Luna</option>
+                  <option value="cursor">{formatAiProviderLabel("cursor")}</option>
+                  <option value="luna">{formatAiProviderLabel("luna")}</option>
                 </GlassSelect>
               </td>
               <td>

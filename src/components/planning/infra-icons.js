@@ -15,7 +15,6 @@ const SLUG_ALIASES = {
   gowa: "whatsapp",
   docker: "docker",
   stripe: "stripe",
-  cursor: "cursor",
   postmark: "postmark",
   typescript: "typescript",
   javascript: "javascript",
@@ -84,7 +83,6 @@ export function resolveInfraIconSlug(node) {
     if (key.includes("postmark") || key.includes("email")) return "postmark";
     if (key.includes("react")) return "react";
     if (key.includes("node")) return "nodedotjs";
-    if (key.includes("cursor")) return "cursor";
     if (key.includes("erp")) return null;
   }
   const type = normalizeKey(node.type);

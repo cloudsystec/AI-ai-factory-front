@@ -336,7 +336,7 @@ export default function AdminWorkersPage({ embedded = false }) {
                     Bots · slots 1–{slotsMax}
                   </h2>
                   <p className="admin-mgmt__panel-desc">
-                    Cada slot corresponde a um bot Cursor com email e API key próprios.
+                    Cada slot corresponde a um bot online com email e API key próprios.
                   </p>
                 </div>
               </header>
@@ -393,7 +393,7 @@ export default function AdminWorkersPage({ embedded = false }) {
                     Admin API key
                   </h2>
                   <p className="admin-mgmt__panel-desc">
-                    Usada para billing Cursor (Admin API). Não é mostrada após salvar.
+                    Usada para billing da plataforma (Admin API). Não é mostrada após salvar.
                   </p>
                 </div>
               </header>
@@ -513,7 +513,7 @@ export default function AdminWorkersPage({ embedded = false }) {
       className="users-page admin-workers-page admin-mgmt-page"
       eyebrow="Plataforma"
       title="Bots / Workers"
-      subtitle="Container Docker por tenant — cada slot é um bot com email e API key Cursor"
+      subtitle="Container Docker por tenant — cada slot é um bot com email e API key próprios"
       headerActions={
         selectedTenant ? (
           <span className="admin-mgmt__quota" title="Bots configurados">
